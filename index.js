@@ -33,13 +33,14 @@ const playResource = (player) => {
   resource.playStream.on("close", () => {
     console.log("Stream closed");
 
-    setTimeout(() => {
-      resource = createAudioResource(
-        `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
-      );
+    resource.playStream.removeAllListeners();
+    resource.playStream.destroy();
 
-      player.play(resource);
-    }, 5000);
+    resource = createAudioResource(
+      `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
+    );
+
+    player.play(resource);
   });
 
   resource.playStream.on("end", () => {
