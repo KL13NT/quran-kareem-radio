@@ -74,6 +74,10 @@ client.once("ready", async () => {
     },
   });
 
+  player.on("error", (error) => {
+    console.log(error);
+  });
+
   playResource(player);
 
   client.on("messageCreate", async (message) => {
