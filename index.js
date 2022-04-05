@@ -1,4 +1,3 @@
-// Require the necessary discord.js classes
 const {
   AudioPlayer,
   joinVoiceChannel,
@@ -16,15 +15,38 @@ const client = new Client({
   intents: ["GUILD_VOICE_STATES", "GUILDS", "GUILD_MESSAGES"],
 });
 
-// fetch(`https://www.youtube.com/channel/UCzv6uVYjfvE8X-_F3cicWog`)
-//   .then((res) => res.text())
-//   .then((text) => {
-//     try {
-//     } catch (error) {
-//       console.log(error);
-//       throw new Error("Error while filtering response");
-//     }
-//   });
+const playResource = (player) => {
+  let resource = createAudioResource(
+    `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
+  );
+
+  resource.playStream.on("error", () => {
+    resource = createAudioResource(
+      `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
+    );
+
+    player.play(resource);
+  });
+
+  resource.playStream.on("close", () => {
+    resource = createAudioResource(
+      `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
+    );
+
+    player.play(resource);
+  });
+
+  resource.playStream.on("end", () => {
+    resource = createAudioResource(
+      `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
+    );
+
+    player.play(resource);
+  });
+
+  player.play(resource);
+  return resource;
+};
 
 // When the client is ready, run this code (only once)
 client.once("ready", async () => {
@@ -36,10 +58,7 @@ client.once("ready", async () => {
     },
   });
 
-  const resource = createAudioResource(
-    `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
-  );
-  player.play(resource);
+  playResource(player);
 
   client.on("messageCreate", async (message) => {
     try {
