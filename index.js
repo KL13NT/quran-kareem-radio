@@ -33,11 +33,13 @@ const playResource = (player) => {
   resource.playStream.on("close", () => {
     console.log("Stream closed");
 
-    resource = createAudioResource(
-      `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
-    );
+    setTimeout(() => {
+      resource = createAudioResource(
+        `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
+      );
 
-    player.play(resource);
+      player.play(resource);
+    }, 5000);
   });
 
   resource.playStream.on("end", () => {
@@ -130,7 +132,7 @@ client.once("ready", async () => {
 
         newConnection.subscribe(player);
 
-        await message.reply(`Joined voice channel ${message.channel.name}`);
+        await message.reply(`Joined voice channel ${channel.name}`);
       } else if (message.content === "-leave") {
         if (!connected) {
           await message.reply(`I'm not connected to a voice channel`);
@@ -146,9 +148,7 @@ client.once("ready", async () => {
 
         const oldConnection = getVoiceConnection(message.guild.id);
         oldConnection.disconnect();
-        await message.reply(
-          `Disconnected from voice channel ${message.channel.name}`
-        );
+        await message.reply(`Disconnected from voice channel ${channel.name}`);
       }
     } catch (error) {
       console.log(error.message);
