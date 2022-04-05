@@ -42,73 +42,77 @@ client.once("ready", async () => {
   player.play(resource);
 
   client.on("messageCreate", async (message) => {
-    if (message.author.bot) return;
+    try {
+      if (message.author.bot) return;
 
-    const { channel } = message.member.voice;
-    const connection = getVoiceConnection(message.guild.id);
-    const state = message.guild.voiceStates.resolve(CLIENT_ID);
-    const connected = Boolean(state && state.channelId);
-    const streaming = Boolean(connection);
+      const { channel } = message.member.voice;
+      const connection = getVoiceConnection(message.guild.id);
+      const state = message.guild.voiceStates.resolve(CLIENT_ID);
+      const connected = Boolean(state && state.channelId);
+      const streaming = Boolean(connection);
 
-    if (connected && !streaming) {
-      const newConnection = joinVoiceChannel({
-        channelId: state.channelId,
-        guildId: channel.guild.id,
-        group: "default",
-        debug: false,
-        adapterCreator: channel.guild.voiceAdapterCreator,
-      });
+      if (connected && !streaming && channel) {
+        const newConnection = joinVoiceChannel({
+          channelId: state.channelId,
+          guildId: channel.guild.id,
+          group: "default",
+          debug: false,
+          adapterCreator: channel.guild.voiceAdapterCreator,
+        });
 
-      newConnection.subscribe(player);
-    }
+        newConnection.subscribe(player);
+      }
 
-    if (!channel) {
-      await message.reply(`You're not connected to a voice channel`);
-      return;
-    }
+      if (!channel && ["-connect", "-leave"].includes(message.content)) {
+        await message.reply(`You're not connected to a voice channel`);
+        return;
+      }
 
-    if (message.content === "-connect") {
-      if (connected && state.channelId !== channel.id) {
+      if (message.content === "-connect") {
+        if (connected && state.channelId !== channel.id) {
+          await message.reply(
+            `I'm already connected to another channel. If you have permission you can try moving me manually.`
+          );
+          return;
+        }
+
+        if (connected && state.channelId === channel.id) {
+          await message.reply(`I'm already connected to this channel.`);
+          return;
+        }
+
+        const newConnection = joinVoiceChannel({
+          channelId: channel.id,
+          guildId: channel.guild.id,
+          group: "default",
+          debug: false,
+          adapterCreator: channel.guild.voiceAdapterCreator,
+        });
+
+        newConnection.subscribe(player);
+
+        await message.reply(`Joined voice channel ${message.channel.name}`);
+      } else if (message.content === "-leave") {
+        if (!connected) {
+          await message.reply(`I'm not connected to a voice channel`);
+          return;
+        }
+
+        if (channel.id !== state.channelId && connected) {
+          await message.reply(
+            `You're not connected to the same voice channel as I am.`
+          );
+          return;
+        }
+
+        const oldConnection = getVoiceConnection(message.guild.id);
+        oldConnection.disconnect();
         await message.reply(
-          `I'm already connected to another channel. If you have permission you can try moving me manually.`
+          `Disconnected from voice channel ${message.channel.name}`
         );
-        return;
       }
-
-      if (connected && state.channelId === channel.id) {
-        await message.reply(`I'm already connected to this channel.`);
-        return;
-      }
-
-      const newConnection = joinVoiceChannel({
-        channelId: channel.id,
-        guildId: channel.guild.id,
-        group: "default",
-        debug: false,
-        adapterCreator: channel.guild.voiceAdapterCreator,
-      });
-
-      newConnection.subscribe(player);
-
-      await message.reply(`Joined voice channel ${message.channel.name}`);
-    } else if (message.content === "-leave") {
-      if (!connected) {
-        await message.reply(`I'm not connected to a voice channel`);
-        return;
-      }
-
-      if (channel.id !== state.channelId && connected) {
-        await message.reply(
-          `You're not connected to the same voice channel as I am.`
-        );
-        return;
-      }
-
-      const oldConnection = getVoiceConnection(message.guild.id);
-      oldConnection.disconnect();
-      await message.reply(
-        `Disconnected from voice channel ${message.channel.name}`
-      );
+    } catch (error) {
+      console.log(error.message);
     }
   });
 });
