@@ -20,7 +20,9 @@ const playResource = (player) => {
     `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
   );
 
-  resource.playStream.on("error", () => {
+  resource.playStream.on("error", (err) => {
+    console.log(err);
+
     resource = createAudioResource(
       `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
     );
@@ -29,6 +31,8 @@ const playResource = (player) => {
   });
 
   resource.playStream.on("close", () => {
+    console.log("Stream closed");
+
     resource = createAudioResource(
       `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
     );
@@ -37,6 +41,18 @@ const playResource = (player) => {
   });
 
   resource.playStream.on("end", () => {
+    console.log("Stream ended");
+
+    resource = createAudioResource(
+      `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
+    );
+
+    player.play(resource);
+  });
+
+  resource.playStream.on("pause", () => {
+    console.log("Stream paused");
+
     resource = createAudioResource(
       `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
     );
