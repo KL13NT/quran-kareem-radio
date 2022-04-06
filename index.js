@@ -5,27 +5,30 @@ const {
   getVoiceConnection,
 } = require("@discordjs/voice");
 const { Client } = require("discord.js");
+const m3u8stream = require("m3u8stream");
 
 require("dotenv").config();
 
 const { TOKEN, CLIENT_ID } = process.env;
+const STREAM = `https://stream.radiojar.com/8s5u5tpdtwzuv`;
 
 // Create a new client instance
 const client = new Client({
   intents: ["GUILD_VOICE_STATES", "GUILDS", "GUILD_MESSAGES"],
 });
 
+/**
+ * @param {import('@discordjs/voice').AudioPlayer} player
+ */
 const playResource = (player) => {
-  let resource = createAudioResource(
-    `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
-  );
+  let resource = createAudioResource(STREAM, {
+    inputType: "arbitrary",
+  });
 
   resource.playStream.on("error", (err) => {
     console.log(err);
 
-    resource = createAudioResource(
-      `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
-    );
+    resource = createAudioResource(m3u8stream(STREAM));
 
     player.play(resource);
   });
@@ -36,9 +39,9 @@ const playResource = (player) => {
     resource.playStream.removeAllListeners();
     resource.playStream.destroy();
 
-    resource = createAudioResource(
-      `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
-    );
+    console.log("Creating another audio source");
+
+    resource = createAudioResource(m3u8stream(STREAM));
 
     player.play(resource);
   });
@@ -46,9 +49,7 @@ const playResource = (player) => {
   resource.playStream.on("end", () => {
     console.log("Stream ended");
 
-    resource = createAudioResource(
-      `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
-    );
+    resource = createAudioResource(m3u8stream(STREAM));
 
     player.play(resource);
   });
@@ -56,9 +57,7 @@ const playResource = (player) => {
   resource.playStream.on("pause", () => {
     console.log("Stream paused");
 
-    resource = createAudioResource(
-      `https://livestreaming5.onlinehorizons.net/hls-live/Qurankareem/_definst_/liveevent/livestream.m3u8`
-    );
+    resource = createAudioResource(m3u8stream(STREAM));
 
     player.play(resource);
   });
@@ -67,11 +66,14 @@ const playResource = (player) => {
   return resource;
 };
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
+
 // When the client is ready, run this code (only once)
 client.once("ready", async () => {
   console.log("Ready!");
 
   const player = new AudioPlayer({
+    debug: true,
     behaviors: {
       noSubscriber: "play",
     },
@@ -79,6 +81,14 @@ client.once("ready", async () => {
 
   player.on("error", (error) => {
     console.log(error);
+  });
+
+  player.on("stateChange", (args) => {
+    console.log(args);
+  });
+
+  player.on("debug", (args) => {
+    console.log(args);
   });
 
   playResource(player);
