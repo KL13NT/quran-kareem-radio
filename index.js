@@ -9,7 +9,7 @@ const m3u8stream = require("m3u8stream");
 
 require("dotenv").config();
 
-const { TOKEN, CLIENT_ID } = process.env;
+const { TOKEN, CLIENT_ID, MODE } = process.env;
 const STREAM = `https://stream.radiojar.com/8s5u5tpdtwzuv`;
 
 // Create a new client instance
@@ -17,53 +17,54 @@ const client = new Client({
   intents: ["GUILD_VOICE_STATES", "GUILDS", "GUILD_MESSAGES"],
 });
 
-/**
- * @param {import('@discordjs/voice').AudioPlayer} player
- */
-const playResource = (player) => {
-  let resource = createAudioResource(STREAM, {
-    inputType: "arbitrary",
-  });
+const createAudioPlayerSource = () =>
+  createAudioResource(
+    m3u8stream(STREAM, {
+      requestOptions: {
+        maxRetries: 10,
+      },
+    })
+  );
 
-  resource.playStream.on("error", (err) => {
-    console.log(err);
-
-    resource = createAudioResource(m3u8stream(STREAM));
-
-    player.play(resource);
-  });
-
-  resource.playStream.on("close", () => {
-    console.log("Stream closed");
+const handleStreamErrors =
+  (resource, player, message) => (reason /* string | Error | void */) => {
+    console.log(message, reason);
 
     resource.playStream.removeAllListeners();
     resource.playStream.destroy();
 
     console.log("Creating another audio source");
 
-    resource = createAudioResource(m3u8stream(STREAM));
+    const newSource = createAudioPlayerSource();
+    player.play(newSource);
+  };
 
-    player.play(resource);
-  });
-
-  resource.playStream.on("end", () => {
-    console.log("Stream ended");
-
-    resource = createAudioResource(m3u8stream(STREAM));
-
-    player.play(resource);
-  });
-
-  resource.playStream.on("pause", () => {
-    console.log("Stream paused");
-
-    resource = createAudioResource(m3u8stream(STREAM));
-
-    player.play(resource);
-  });
-
+/**
+ * @param {import('@discordjs/voice').AudioPlayer} player
+ */
+const playResource = (player) => {
+  const resource = createAudioPlayerSource();
   player.play(resource);
-  return resource;
+
+  resource.playStream.on(
+    "error",
+    handleStreamErrors(resource, player, "Stream error")
+  );
+
+  resource.playStream.on(
+    "close",
+    handleStreamErrors(resource, player, "Stream closed")
+  );
+
+  resource.playStream.on(
+    "end",
+    handleStreamErrors(resource, player, "Stream ended")
+  );
+
+  resource.playStream.on(
+    "pause",
+    handleStreamErrors(resource, player, "Stream paused")
+  );
 };
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
@@ -75,7 +76,7 @@ client.once("ready", async () => {
   const player = new AudioPlayer({
     debug: true,
     behaviors: {
-      noSubscriber: "play",
+      noSubscriber: "stop",
     },
   });
 
@@ -83,13 +84,14 @@ client.once("ready", async () => {
     console.log(error);
   });
 
-  player.on("stateChange", (args) => {
-    console.log(args);
+  player.on("stateChange", (change) => {
+    console.log(change);
   });
 
-  player.on("debug", (args) => {
-    console.log(args);
-  });
+  if (MODE === "DEVELOPMENT")
+    player.on("debug", (log) => {
+      console.log(log);
+    });
 
   playResource(player);
 
