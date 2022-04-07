@@ -76,7 +76,7 @@ client.once("ready", async () => {
   const player = new AudioPlayer({
     debug: true,
     behaviors: {
-      noSubscriber: "stop",
+      noSubscriber: "play",
     },
   });
 
