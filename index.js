@@ -5,7 +5,6 @@ const {
   getVoiceConnection,
 } = require("@discordjs/voice");
 const { Client } = require("discord.js");
-const m3u8stream = require("m3u8stream");
 
 require("dotenv").config();
 
@@ -18,13 +17,9 @@ const client = new Client({
 });
 
 const createAudioPlayerSource = () =>
-  createAudioResource(
-    m3u8stream(STREAM, {
-      requestOptions: {
-        maxRetries: 10,
-      },
-    })
-  );
+  createAudioResource(STREAM, {
+    silencePaddingFrames: 0,
+  });
 
 const handleStreamErrors =
   (resource, player, message) => (reason /* string | Error | void */) => {
@@ -35,8 +30,15 @@ const handleStreamErrors =
 
     console.log("Creating another audio source");
 
-    const newSource = createAudioPlayerSource();
-    player.play(newSource);
+    let newSource = createAudioPlayerSource();
+    const interval = setInterval(() => {
+      if (newSource.started && newSource.readable) {
+        player.play(newSource);
+        clearInterval(interval);
+      } else {
+        newSource = createAudioPlayerSource();
+      }
+    }, 5000);
   };
 
 /**
