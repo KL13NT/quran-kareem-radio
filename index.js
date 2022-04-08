@@ -33,9 +33,13 @@ const handleStreamErrors =
     let newSource = createAudioPlayerSource();
     const interval = setInterval(() => {
       if (newSource.started && newSource.readable) {
+        console.log("New source stream is readable");
+
         player.play(newSource);
         clearInterval(interval);
       } else {
+        console.log("New source stream is NOT readable");
+
         newSource = createAudioPlayerSource();
       }
     }, 5000);
@@ -74,6 +78,11 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 // When the client is ready, run this code (only once)
 client.once("ready", async () => {
   console.log("Ready!");
+
+  client.user.setActivity({
+    type: "LISTENING",
+    name: "-connect and -leave",
+  });
 
   const player = new AudioPlayer({
     debug: true,
