@@ -1,77 +1,16 @@
-const {
-  AudioPlayer,
-  joinVoiceChannel,
-  createAudioResource,
-  getVoiceConnection,
-} = require("@discordjs/voice");
+const { joinVoiceChannel, getVoiceConnection } = require("@discordjs/voice");
 const { Client } = require("discord.js");
 
 require("dotenv").config();
 
-const { TOKEN, CLIENT_ID, MODE } = process.env;
-const STREAM = `https://stream.radiojar.com/8s5u5tpdtwzuv`;
+const { PlayerManager } = require("./player-manager");
+
+const { TOKEN, CLIENT_ID } = process.env;
 
 // Create a new client instance
 const client = new Client({
   intents: ["GUILD_VOICE_STATES", "GUILDS", "GUILD_MESSAGES"],
 });
-
-const createAudioPlayerSource = () =>
-  createAudioResource(STREAM, {
-    silencePaddingFrames: 0,
-  });
-
-const handleStreamErrors =
-  (resource, player, message) => (reason /* string | Error | void */) => {
-    console.log(message, reason);
-
-    resource.playStream.removeAllListeners();
-    resource.playStream.destroy();
-
-    console.log("Creating another audio source");
-
-    let newSource = createAudioPlayerSource();
-    const interval = setInterval(() => {
-      if (newSource.started && newSource.readable) {
-        console.log("New source stream is readable");
-
-        player.play(newSource);
-        clearInterval(interval);
-      } else {
-        console.log("New source stream is NOT readable");
-
-        newSource = createAudioPlayerSource();
-      }
-    }, 5000);
-  };
-
-/**
- * @param {import('@discordjs/voice').AudioPlayer} player
- */
-const playResource = (player) => {
-  const resource = createAudioPlayerSource();
-  player.play(resource);
-
-  resource.playStream.on(
-    "error",
-    handleStreamErrors(resource, player, "Stream error")
-  );
-
-  resource.playStream.on(
-    "close",
-    handleStreamErrors(resource, player, "Stream closed")
-  );
-
-  resource.playStream.on(
-    "end",
-    handleStreamErrors(resource, player, "Stream ended")
-  );
-
-  resource.playStream.on(
-    "pause",
-    handleStreamErrors(resource, player, "Stream paused")
-  );
-};
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 
@@ -79,32 +18,13 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 client.once("ready", async () => {
   console.log("Ready!");
 
+  const playerManager = new PlayerManager();
+  playerManager.init();
+
   client.user.setActivity({
     type: "LISTENING",
     name: "-connect and -leave",
   });
-
-  const player = new AudioPlayer({
-    debug: true,
-    behaviors: {
-      noSubscriber: "play",
-    },
-  });
-
-  player.on("error", (error) => {
-    console.log(error);
-  });
-
-  player.on("stateChange", (change) => {
-    console.log(change);
-  });
-
-  if (MODE === "DEVELOPMENT")
-    player.on("debug", (log) => {
-      console.log(log);
-    });
-
-  playResource(player);
 
   client.on("messageCreate", async (message) => {
     try {
@@ -125,7 +45,7 @@ client.once("ready", async () => {
           adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        newConnection.subscribe(player);
+        playerManager.subscribe(newConnection);
       }
 
       if (!channel && ["-connect", "-leave"].includes(message.content)) {
@@ -154,7 +74,7 @@ client.once("ready", async () => {
           adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        newConnection.subscribe(player);
+        playerManager.subscribe(newConnection);
 
         await message.reply(`Joined voice channel ${channel.name}`);
       } else if (message.content === "-leave") {
