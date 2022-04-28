@@ -22,10 +22,16 @@ class PlayerManager extends EventEmitter {
       console.error(error);
     });
 
+    this.player.on("stateChange", (change) => {
+      console.log(change);
+    });
+
+    this.player.on("debug", (log) => {
+      console.log(log);
+    });
+
     this.player.play(this.resource);
   };
-
-  refreshResource = () => {};
 
   handleStreamErrors = (message) => (reason /* string | Error | void */) => {
     console.log(message, reason);
@@ -47,7 +53,6 @@ class PlayerManager extends EventEmitter {
         console.log("New source stream is NOT readable");
 
         this.resource = createAudioPlayerSource();
-        this.attachListeners();
       }
     }, 5000);
   };
