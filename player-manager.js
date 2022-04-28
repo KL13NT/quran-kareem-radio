@@ -41,6 +41,7 @@ class PlayerManager extends EventEmitter {
         console.log("New source stream is readable");
 
         this.player.play(this.resource);
+        this.attachListeners();
         clearInterval(interval);
       } else {
         console.log("New source stream is NOT readable");
