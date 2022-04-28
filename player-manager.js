@@ -19,15 +19,7 @@ class PlayerManager extends EventEmitter {
     });
 
     this.player.on("error", (error) => {
-      console.log(error);
-    });
-
-    this.player.on("stateChange", (change) => {
-      console.log(change);
-    });
-
-    this.player.on("debug", (log) => {
-      console.log(log);
+      console.error(error);
     });
 
     this.player.play(this.resource);
@@ -43,17 +35,17 @@ class PlayerManager extends EventEmitter {
 
     console.log("Creating another audio source");
 
-    let newSource = createAudioPlayerSource();
+    this.resource = createAudioPlayerSource();
     const interval = setInterval(() => {
-      if (newSource.started && newSource.readable) {
+      if (this.resource.started && this.resource.readable) {
         console.log("New source stream is readable");
 
-        this.player.play(newSource);
+        this.player.play(this.resource);
         clearInterval(interval);
       } else {
         console.log("New source stream is NOT readable");
 
-        newSource = createAudioPlayerSource();
+        this.resource = createAudioPlayerSource();
         this.attachListeners();
       }
     }, 5000);
