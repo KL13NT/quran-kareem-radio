@@ -1,10 +1,11 @@
 const { joinVoiceChannel, getVoiceConnection } = require("@discordjs/voice");
 const { Client } = require("discord.js");
-const { connect } = require("./controllers/mongo-controller");
 
 require("dotenv").config();
 
 const { PlayerController } = require("./controllers/player-controller");
+const { connect } = require("./controllers/mongo-controller");
+const { getConfig, updateConfig } = require("./controllers/config-controller");
 
 const { TOKEN, CLIENT_ID } = process.env;
 
@@ -33,6 +34,9 @@ client.once("ready", async () => {
     try {
       if (message.author.bot) return;
 
+      const config = await getConfig(message.guild.id);
+      const prefix = config?.prefix || "-";
+
       const { channel } = message.member.voice;
       const connection = getVoiceConnection(message.guild.id);
       const state = message.guild.voiceStates.resolve(CLIENT_ID);
@@ -51,19 +55,21 @@ client.once("ready", async () => {
         playerController.subscribe(newConnection);
       }
 
-      if (!channel && ["-connect", "-leave"].includes(message.content)) {
+      if (
+        !channel &&
+        [`${prefix}connect`, `${prefix}leave`].includes(message.content)
+      ) {
         await message.reply(`You're not connected to a voice channel`);
         return;
       }
 
-      if (message.content === "-connect") {
+      if (message.content === `${prefix}connect`) {
         if (connected && state.channelId !== channel.id) {
           await message.reply(
             `I'm already connected to another channel. If you have permission you can try moving me manually.`
           );
           return;
         }
-
         if (connected && state.channelId === channel.id) {
           await message.reply(`I'm already connected to this channel.`);
           return;
@@ -96,6 +102,14 @@ client.once("ready", async () => {
         const oldConnection = getVoiceConnection(message.guild.id);
         oldConnection.disconnect();
         await message.reply(`Disconnected from voice channel ${channel.name}`);
+      } else if (message.content.startsWith(`${prefix}prefix`)) {
+        if (message.content.split(" ").length !== 2) {
+          await message.reply(`this command takes one parameter.`);
+          return;
+        }
+
+        const [_, newPrefix] = message.content.split(" ");
+        await updateConfig(message.guild.id, { prefix: newPrefix });
       }
     } catch (error) {
       console.log(error.message);
