@@ -11,6 +11,7 @@
     "ffmpeg-static": "^4.4.1",
     "fluent-ffmpeg": "^2.1.2",
     "m3u8stream": "^0.8.6",
+    "mongodb": "^4.5.0",
     "node-fetch": "^2.6.7",
     "node-gyp": "^9.0.0",
     "tweetnacl": "^1.0.3",
