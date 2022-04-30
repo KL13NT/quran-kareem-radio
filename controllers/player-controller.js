@@ -1,6 +1,6 @@
 const { EventEmitter } = require("events");
 const { AudioPlayer } = require("@discordjs/voice");
-const { createAudioPlayerSource } = require("./utils");
+const { createAudioPlayerSource } = require("../utils");
 
 const { MODE } = process.env;
 

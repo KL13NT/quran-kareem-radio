@@ -1,9 +1,10 @@
 const { joinVoiceChannel, getVoiceConnection } = require("@discordjs/voice");
 const { Client } = require("discord.js");
+const { connect } = require("./controllers/mongo-controller");
 
 require("dotenv").config();
 
-const { PlayerManager } = require("./player-manager");
+const { PlayerController } = require("./controllers/player-controller");
 
 const { TOKEN, CLIENT_ID } = process.env;
 
@@ -18,8 +19,10 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 client.once("ready", async () => {
   console.log("Ready!");
 
-  const playerManager = new PlayerManager();
-  playerManager.init();
+  await connect();
+
+  const playerController = new PlayerController();
+  playerController.init();
 
   client.user.setActivity({
     type: "LISTENING",
@@ -45,7 +48,7 @@ client.once("ready", async () => {
           adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        playerManager.subscribe(newConnection);
+        playerController.subscribe(newConnection);
       }
 
       if (!channel && ["-connect", "-leave"].includes(message.content)) {
@@ -74,7 +77,7 @@ client.once("ready", async () => {
           adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        playerManager.subscribe(newConnection);
+        playerController.subscribe(newConnection);
 
         await message.reply(`Joined voice channel ${channel.name}`);
       } else if (message.content === "-leave") {
