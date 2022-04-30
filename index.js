@@ -3,7 +3,9 @@ const { Client } = require("discord.js");
 
 require("dotenv").config();
 
-const { PlayerManager } = require("./player-manager");
+const { PlayerController } = require("./controllers/player-controller");
+const { connect } = require("./controllers/mongo-controller");
+const { getConfig, updateConfig } = require("./controllers/config-controller");
 
 const { TOKEN, CLIENT_ID } = process.env;
 
@@ -18,8 +20,10 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 client.once("ready", async () => {
   console.log("Ready!");
 
-  const playerManager = new PlayerManager();
-  playerManager.init();
+  await connect();
+
+  const playerController = new PlayerController();
+  playerController.init();
 
   client.user.setActivity({
     type: "LISTENING",
@@ -29,6 +33,9 @@ client.once("ready", async () => {
   client.on("messageCreate", async (message) => {
     try {
       if (message.author.bot) return;
+
+      const config = await getConfig(message.guild.id);
+      const prefix = config?.prefix || "-";
 
       const { channel } = message.member.voice;
       const connection = getVoiceConnection(message.guild.id);
@@ -45,22 +52,24 @@ client.once("ready", async () => {
           adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        playerManager.subscribe(newConnection);
+        playerController.subscribe(newConnection);
       }
 
-      if (!channel && ["-connect", "-leave"].includes(message.content)) {
+      if (
+        !channel &&
+        [`${prefix}connect`, `${prefix}leave`].includes(message.content)
+      ) {
         await message.reply(`You're not connected to a voice channel`);
         return;
       }
 
-      if (message.content === "-connect") {
+      if (message.content === `${prefix}connect`) {
         if (connected && state.channelId !== channel.id) {
           await message.reply(
             `I'm already connected to another channel. If you have permission you can try moving me manually.`
           );
           return;
         }
-
         if (connected && state.channelId === channel.id) {
           await message.reply(`I'm already connected to this channel.`);
           return;
@@ -74,7 +83,7 @@ client.once("ready", async () => {
           adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        playerManager.subscribe(newConnection);
+        playerController.subscribe(newConnection);
 
         await message.reply(`Joined voice channel ${channel.name}`);
       } else if (message.content === "-leave") {
@@ -93,6 +102,14 @@ client.once("ready", async () => {
         const oldConnection = getVoiceConnection(message.guild.id);
         oldConnection.disconnect();
         await message.reply(`Disconnected from voice channel ${channel.name}`);
+      } else if (message.content.startsWith(`${prefix}prefix`)) {
+        if (message.content.split(" ").length !== 2) {
+          await message.reply(`this command takes one parameter.`);
+          return;
+        }
+
+        const [_, newPrefix] = message.content.split(" ");
+        await updateConfig(message.guild.id, { prefix: newPrefix });
       }
     } catch (error) {
       console.log(error.message);
