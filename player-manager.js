@@ -1,6 +1,6 @@
 const { EventEmitter } = require("events");
 const { AudioPlayer } = require("@discordjs/voice");
-const { createAudioPlayerSource, retryUntilSuccess } = require("./utils");
+const { createAudioPlayerSource } = require("./utils");
 
 const { MODE } = process.env;
 
@@ -91,7 +91,13 @@ class PlayerManager extends EventEmitter {
     );
   };
 
-  subscribe = (connection) => {
+  /**
+   * @param {import('@discordjs/voice').VoiceConnection} connection
+   * @param {import('discord.js').GuildMember} member
+   *
+   */
+  subscribe = (connection, member) => {
+    console.log(`subscribing ${member.user.tag} from ${member.guild.name}`);
     connection.subscribe(this.player);
   };
 }

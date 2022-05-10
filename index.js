@@ -45,7 +45,7 @@ client.once("ready", async () => {
           adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        playerManager.subscribe(newConnection);
+        playerManager.subscribe(newConnection, message.member);
       }
 
       if (!channel && ["-connect", "-leave"].includes(message.content)) {
@@ -74,7 +74,7 @@ client.once("ready", async () => {
           adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        playerManager.subscribe(newConnection);
+        playerManager.subscribe(newConnection, message.member);
 
         await message.reply(`Joined voice channel ${channel.name}`);
       } else if (message.content === "-leave") {
