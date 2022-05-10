@@ -1,16 +1,30 @@
 const { EventEmitter } = require("events");
 const { AudioPlayer } = require("@discordjs/voice");
-const { createAudioPlayerSource } = require("./utils");
+const { createAudioPlayerSource, retryUntilSuccess } = require("./utils");
 
 const { MODE } = process.env;
 
 class PlayerManager extends EventEmitter {
+  /** @type {import('@discordjs/voice').AudioResource} */
   resource = null;
 
+  /** @type {AudioPlayer} */
   player = null;
 
+  createResource() {}
+
   init = () => {
-    this.resource = createAudioPlayerSource();
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      try {
+        this.resource = createAudioPlayerSource();
+        break;
+      } catch (error) {
+        console.log(`error: while trying to init resource ${error.message}`);
+      }
+    }
+
+    this.attachListeners();
     this.player = new AudioPlayer({
       debug: MODE === "DEVELOPMENT",
       behaviors: {
@@ -19,15 +33,11 @@ class PlayerManager extends EventEmitter {
     });
 
     this.player.on("error", (error) => {
-      console.error(error);
+      console.error(`error: ${error.message}`);
     });
 
     this.player.on("stateChange", (change) => {
-      console.log(change);
-    });
-
-    this.player.on("debug", (log) => {
-      console.log(log);
+      console.log(`Player status changed to ${change.status}`);
     });
 
     this.player.play(this.resource);
@@ -41,18 +51,23 @@ class PlayerManager extends EventEmitter {
 
     console.log("Creating another audio source");
 
-    this.resource = createAudioPlayerSource();
     const interval = setInterval(() => {
-      if (this.resource.started && this.resource.readable) {
-        console.log("New source stream is readable");
-
-        this.player.play(this.resource);
-        this.attachListeners();
-        clearInterval(interval);
-      } else {
-        console.log("New source stream is NOT readable");
-
+      try {
         this.resource = createAudioPlayerSource();
+
+        if (this.resource.started && this.resource.readable) {
+          console.log("New source stream is readable");
+
+          this.player.play(this.resource);
+          this.attachListeners();
+          clearInterval(interval);
+        } else {
+          console.log("New source stream is NOT readable");
+
+          this.resource = createAudioPlayerSource();
+        }
+      } catch (error) {
+        console.log(`error: stream error when retrying ${error.message} `);
       }
     }, 5000);
   };
