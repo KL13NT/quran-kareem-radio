@@ -1,16 +1,22 @@
 const { joinVoiceChannel, getVoiceConnection } = require("@discordjs/voice");
 const { Client } = require("discord.js");
+const { createClient } = require("redis");
 
 require("dotenv").config();
 
 const { PlayerManager } = require("./player-manager");
+const { RedisController } = require("./redis-controller");
 
 const { TOKEN, CLIENT_ID } = process.env;
+
+const redisClient = createClient();
 
 // Create a new client instance
 const client = new Client({
   intents: ["GUILD_VOICE_STATES", "GUILDS", "GUILD_MESSAGES"],
 });
+
+const redis = new RedisController(redisClient);
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 
@@ -18,12 +24,45 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 client.once("ready", async () => {
   console.log("Ready!");
 
+  await redisClient.connect();
+
   const playerManager = new PlayerManager();
   playerManager.init();
 
   client.user.setActivity({
     type: "LISTENING",
     name: "-connect and -leave",
+  });
+
+  console.log("getting keys");
+  /** @type {string[]} */
+  const results = await redis.keys("CONNECTION*");
+  console.log("results", results);
+
+  results.forEach(async (result) => {
+    try {
+      const [, guildId, channelId] = result.match(/CONNECTION:(\d+):(\d+)/);
+
+      const guild = await client.guilds.resolve(guildId);
+
+      const connection = await joinVoiceChannel({
+        channelId,
+        guildId,
+        group: "default",
+        debug: false,
+        adapterCreator: guild.voiceAdapterCreator,
+      });
+
+      playerManager.subscribe(connection, guild);
+    } catch (error) {
+      console.log(`error while rejoining ${error.message}`);
+    }
+  });
+
+  client.on("voiceStateUpdate", async (oldState, newState) => {
+    if (newState.member.id === CLIENT_ID && !newState.channel) {
+      await redis.del(`CONNECTION:${oldState.guild.id}:${oldState.channel.id}`);
+    }
   });
 
   client.on("messageCreate", async (message) => {
@@ -45,7 +84,9 @@ client.once("ready", async () => {
           adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        playerManager.subscribe(newConnection, message.member);
+        playerManager.subscribe(newConnection, message.guild);
+
+        await redis.set(`CONNECTION:${channel.guild.id}:${state.channelId}`, 0);
       }
 
       if (!channel && ["-connect", "-leave"].includes(message.content)) {
@@ -74,7 +115,9 @@ client.once("ready", async () => {
           adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        playerManager.subscribe(newConnection, message.member);
+        playerManager.subscribe(newConnection, message.guild);
+
+        await redis.set(`CONNECTION:${channel.guild.id}:${channel.id}`, 0);
 
         await message.reply(`Joined voice channel ${channel.name}`);
       } else if (message.content === "-leave") {
@@ -92,7 +135,11 @@ client.once("ready", async () => {
 
         const oldConnection = getVoiceConnection(message.guild.id);
         oldConnection.disconnect();
-        await message.reply(`Disconnected from voice channel ${channel.name}`);
+
+        redis.del(`CONNECTION:${channel.guild.id}:${channel.id}`);
+        await message.reply(
+          `Disconnected from voice channel ${channel.name} from ${channel.guild.name}`
+        );
       }
     } catch (error) {
       console.log(error.message);

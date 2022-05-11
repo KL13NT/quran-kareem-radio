@@ -63,8 +63,6 @@ class PlayerManager extends EventEmitter {
           clearInterval(interval);
         } else {
           console.log("New source stream is NOT readable");
-
-          this.resource = createAudioPlayerSource();
         }
       } catch (error) {
         console.log(`error: stream error when retrying ${error.message} `);
@@ -93,11 +91,11 @@ class PlayerManager extends EventEmitter {
 
   /**
    * @param {import('@discordjs/voice').VoiceConnection} connection
-   * @param {import('discord.js').GuildMember} member
+   * @param {import('discord.js').Guild} member
    *
    */
-  subscribe = (connection, member) => {
-    console.log(`subscribing ${member.user.tag} from ${member.guild.name}`);
+  subscribe = (connection, guild) => {
+    console.log(`subscribing ${guild.name}`);
     connection.subscribe(this.player);
   };
 }
