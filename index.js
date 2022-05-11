@@ -62,6 +62,13 @@ client.once("ready", async () => {
   client.on("voiceStateUpdate", async (oldState, newState) => {
     if (newState.member.id === CLIENT_ID && !newState.channel) {
       await redis.del(`CONNECTION:${oldState.guild.id}:${oldState.channel.id}`);
+    } else if (
+      newState.member.id === CLIENT_ID &&
+      newState.channel &&
+      oldState.channel
+    ) {
+      await redis.del(`CONNECTION:${oldState.guild.id}:${oldState.channel.id}`);
+      await redis.set(`CONNECTION:${newState.guild.id}:${newState.channel.id}`);
     }
   });
 
