@@ -1,4 +1,8 @@
-const { joinVoiceChannel, getVoiceConnection } = require("@discordjs/voice");
+const {
+  joinVoiceChannel,
+  getVoiceConnection,
+  getVoiceConnections,
+} = require("@discordjs/voice");
 const { Client } = require("discord.js");
 const { createClient } = require("redis");
 
@@ -33,6 +37,30 @@ client.once("ready", async () => {
     type: "LISTENING",
     name: "-connect and -leave",
   });
+
+  setInterval(() => {
+    try {
+      /** @type {import('discord.js').VoiceChannel[]} */
+      const allChannels = Array.from(client.channels.cache.values());
+
+      const voiceChannels = allChannels.filter(
+        (channel) =>
+          channel.type === "GUILD_VOICE" &&
+          channel.members.has(process.env.CLIENT_ID)
+      );
+
+      const membersCount = voiceChannels.reduce(
+        (acc, cur) => acc + cur.members.size - 1,
+        0
+      );
+
+      console.log(
+        `stats: bot is currently connected to ${voiceChannels.length} channels with with ${membersCount} members listening in ${client.guilds.cache.size} servers`
+      );
+    } catch (error) {
+      console.log(`error: ${error.message}`);
+    }
+  }, 5 * 60 * 1000);
 
   console.log("getting keys");
   /** @type {string[]} */
