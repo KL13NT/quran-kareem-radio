@@ -1,26 +1,19 @@
-const {
-  joinVoiceChannel,
-  getVoiceConnection,
-  getVoiceConnections,
-} = require("@discordjs/voice");
+const { joinVoiceChannel, getVoiceConnection } = require("@discordjs/voice");
 const { Client } = require("discord.js");
 const { createClient } = require("redis");
 
 require("dotenv").config();
 
 const { PlayerManager } = require("./player-manager");
-const { RedisController } = require("./redis-controller");
 
 const { TOKEN, CLIENT_ID } = process.env;
 
-const redisClient = createClient();
+const redis = createClient();
 
 // Create a new client instance
 const client = new Client({
   intents: ["GUILD_VOICE_STATES", "GUILDS", "GUILD_MESSAGES"],
 });
-
-const redis = new RedisController(redisClient);
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 
@@ -28,7 +21,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 client.once("ready", async () => {
   console.log("Ready!");
 
-  await redisClient.connect();
+  await redis.connect();
 
   const playerManager = new PlayerManager();
   playerManager.init();
@@ -110,13 +103,13 @@ client.once("ready", async () => {
     }
   });
 
-  client.on("messageCreate", async (message) => {
-    try {
-      if (message.author.bot) return;
+  client.on("interactionCreate", async (interaction) => {
+    const { commandName } = interaction;
 
-      const { channel } = message.member.voice;
-      const connection = getVoiceConnection(message.guild.id);
-      const state = message.guild.voiceStates.resolve(CLIENT_ID);
+    try {
+      const { channel } = interaction.member.voice;
+      const connection = getVoiceConnection(interaction.guild.id);
+      const state = interaction.guild.voiceStates.resolve(CLIENT_ID);
       const connected = Boolean(state && state.channelId);
       const streaming = Boolean(connection);
 
@@ -129,26 +122,26 @@ client.once("ready", async () => {
           adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        playerManager.subscribe(newConnection, message.guild);
+        playerManager.subscribe(newConnection, interaction.guild);
 
         await redis.set(`CONNECTION:${channel.guild.id}:${state.channelId}`, 0);
       }
 
-      if (!channel && ["-connect", "-leave"].includes(message.content)) {
-        await message.reply(`You're not connected to a voice channel`);
+      if (!channel) {
+        await interaction.reply(`You're not connected to a voice channel`);
         return;
       }
 
-      if (message.content === "-connect") {
+      if (commandName === "connect") {
         if (connected && state.channelId !== channel.id) {
-          await message.reply(
+          await interaction.reply(
             `I'm already connected to another channel. If you have permission you can try moving me manually.`
           );
           return;
         }
 
         if (connected && state.channelId === channel.id) {
-          await message.reply(`I'm already connected to this channel.`);
+          await interaction.reply(`I'm already connected to this channel.`);
           return;
         }
 
@@ -160,34 +153,34 @@ client.once("ready", async () => {
           adapterCreator: channel.guild.voiceAdapterCreator,
         });
 
-        playerManager.subscribe(newConnection, message.guild);
+        playerManager.subscribe(newConnection, interaction.guild);
 
         await redis.set(`CONNECTION:${channel.guild.id}:${channel.id}`, 0);
-
-        await message.reply(`Joined voice channel ${channel.name}`);
-      } else if (message.content === "-leave") {
+        await interaction.reply(`Joined voice channel ${channel.name}`);
+      } else if (commandName === "leave") {
         if (!connected) {
-          await message.reply(`I'm not connected to a voice channel`);
+          await interaction.reply(`I'm not connected to a voice channel`);
           return;
         }
 
         if (channel.id !== state.channelId && connected) {
-          await message.reply(
+          await interaction.reply(
             `You're not connected to the same voice channel as I am.`
           );
           return;
         }
 
-        const oldConnection = getVoiceConnection(message.guild.id);
+        const oldConnection = getVoiceConnection(interaction.guild.id);
         oldConnection.disconnect();
 
         redis.del(`CONNECTION:${channel.guild.id}:${channel.id}`);
-        await message.reply(
+        await interaction.reply(
           `Disconnected from voice channel ${channel.name} from ${channel.guild.name}`
         );
       }
     } catch (error) {
       console.log(error.message);
+      await interaction.reply("I couldn't process that");
     }
   });
 });
