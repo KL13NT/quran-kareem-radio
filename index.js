@@ -28,7 +28,7 @@ client.once("ready", async () => {
 
   client.user.setActivity({
     type: "LISTENING",
-    name: "-connect and -leave",
+    name: "slash commands! /connect & /leave",
   });
 
   setInterval(() => {
