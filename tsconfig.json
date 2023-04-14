@@ -1,0 +1,33 @@
+{
+	"compilerOptions": {
+		"typeRoots": ["./node_modules/@types"],
+		"incremental": true,
+		"target": "esnext",
+		"module": "commonjs",
+		"lib": ["DOM", "ES2016", "ES2020", "ESNext"],
+		"checkJs": false,
+		"declaration": true,
+		"declarationMap": false,
+		"sourceMap": false,
+		"outDir": "./prod",
+		"rootDir": "./src",
+		"removeComments": true,
+		"resolveJsonModule": true,
+		"strict": true,
+		"noImplicitAny": false,
+		"strictNullChecks": false,
+		"strictFunctionTypes": true,
+		"strictBindCallApply": true,
+		"noImplicitThis": true,
+		"alwaysStrict": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noImplicitReturns": false,
+		"moduleResolution": "node",
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"baseUrl": "./"
+	},
+	"include": ["./src/**/*"],
+	"exclude": []
+}
