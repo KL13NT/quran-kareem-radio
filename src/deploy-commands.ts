@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
 import { REST, Routes } from "discord.js";
-import { DeployCommandsResponse } from "./types";
+import { DeployCommandsResponse } from "~/types";
 
 const { CLIENT_ID, TOKEN } = process.env;
 

@@ -1,16 +1,21 @@
 import { EventEmitter } from "events";
+import { Guild } from "discord.js";
 import {
 	AudioPlayer,
 	AudioResource,
+	createAudioResource,
 	NoSubscriberBehavior,
 	VoiceConnection,
 } from "@discordjs/voice";
-import { createAudioPlayerSource } from "./utils";
-import { Guild } from "discord.js";
 
-const { MODE } = process.env;
+const { MODE, STREAM } = process.env;
 
-export class PlayerManager extends EventEmitter {
+export const createAudioPlayerSource = () =>
+	createAudioResource(STREAM, {
+		silencePaddingFrames: 0,
+	});
+
+class Player extends EventEmitter {
 	resource!: AudioResource;
 
 	player!: AudioPlayer;
@@ -101,3 +106,5 @@ export class PlayerManager extends EventEmitter {
 		connection.subscribe(this.player);
 	};
 }
+
+export const player = new Player();

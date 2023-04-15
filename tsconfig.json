@@ -26,7 +26,10 @@
 		"moduleResolution": "node",
 		"esModuleInterop": true,
 		"skipLibCheck": true,
-		"baseUrl": "./"
+		"baseUrl": "./",
+		"paths": {
+			"~/*": ["./src/*"]
+		}
 	},
 	"include": ["./src/**/*"],
 	"exclude": []
