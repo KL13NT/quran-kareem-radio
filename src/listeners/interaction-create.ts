@@ -12,7 +12,7 @@ const { CLIENT_ID } = process.env;
 
 const onInteractionCreate = async (interaction: Interaction) => {
 	const player = Locator.resolve("player");
-	const redis = Locator.resolve("redis");
+	const memory = Locator.resolve("memory");
 	const client = Locator.resolve("client");
 
 	if (!interaction.isCommand()) return;
@@ -40,7 +40,7 @@ const onInteractionCreate = async (interaction: Interaction) => {
 
 			player.subscribe(newConnection, interaction.guild);
 
-			await redis.set(`CONNECTION:${channel.guild.id}:${state.channelId}`, 0);
+			await memory.set(`CONNECTION:${channel.guild.id}:${state.channelId}`, 0);
 		}
 
 		if (!channel) {
@@ -84,7 +84,7 @@ const onInteractionCreate = async (interaction: Interaction) => {
 
 			player.subscribe(newConnection, interaction.guild);
 
-			await redis.set(`CONNECTION:${channel.guild.id}:${channel.id}`, 0);
+			await memory.set(`CONNECTION:${channel.guild.id}:${channel.id}`, 0);
 			await interaction.reply(`Joined voice channel ${channel.name}`);
 		} else if (commandName === "leave") {
 			if (!connected) {
@@ -105,7 +105,7 @@ const onInteractionCreate = async (interaction: Interaction) => {
 				oldConnection.disconnect();
 			}
 
-			redis.del(`CONNECTION:${channel.guild.id}:${channel.id}`);
+			memory.del(`CONNECTION:${channel.guild.id}:${channel.id}`);
 			await interaction.reply(
 				`Disconnected from voice channel ${channel.name} from ${channel.guild.name}`
 			);

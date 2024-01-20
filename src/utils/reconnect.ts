@@ -3,10 +3,10 @@ import { Locator } from "~/controllers/locator";
 
 export const reconnect = async () => {
 	const client = Locator.resolve("client");
-	const redis = Locator.resolve("redis");
+	const memory = Locator.resolve("memory");
 	const player = Locator.resolve("player");
 
-	const results = await redis.keys("CONNECTION*");
+	const results = memory.keys("CONNECTION*");
 
 	results.forEach((result) => {
 		try {

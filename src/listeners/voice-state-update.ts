@@ -8,7 +8,7 @@ const onVoiceStateUpdate = async (
 	oldState: VoiceState,
 	newState: VoiceState
 ) => {
-	const redis = Locator.resolve("redis");
+	const memory = Locator.resolve("memory");
 
 	if (newState.member?.id === CLIENT_ID && !newState.channel) {
 		console.log(
@@ -17,7 +17,7 @@ const onVoiceStateUpdate = async (
 
 		getVoiceConnection(oldState.guild.id)?.destroy();
 
-		await redis.del(`CONNECTION:${oldState.guild.id}:${oldState.channel?.id}`);
+		memory.del(`CONNECTION:${oldState.guild.id}:${oldState.channel?.id}`);
 	} else if (
 		newState.member?.id === CLIENT_ID &&
 		newState.channel &&
@@ -28,8 +28,8 @@ const onVoiceStateUpdate = async (
 		);
 
 		await Promise.all([
-			redis.del(`CONNECTION:${oldState.guild.id}:${oldState.channel.id}`),
-			redis.set(`CONNECTION:${newState.guild.id}:${newState.channel.id}`, 0),
+			memory.del(`CONNECTION:${oldState.guild.id}:${oldState.channel.id}`),
+			memory.set(`CONNECTION:${newState.guild.id}:${newState.channel.id}`, 0),
 		]);
 	}
 };

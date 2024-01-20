@@ -15,13 +15,10 @@ const { TOKEN } = process.env;
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 const client = Locator.resolve("client");
-const redis = Locator.resolve("redis");
 const player = Locator.resolve("player");
 
 client.once("ready", async () => {
 	console.log("Ready!");
-
-	await redis.connect();
 
 	player.init();
 

@@ -1,11 +1,11 @@
 import { client } from "./client";
-import { redis } from "./redis";
 import { player } from "./player";
+import { memory } from "./memory";
 
 const registered = {
-	redis,
 	player,
 	client,
+	memory,
 } as const;
 
 type LocatorKeys = keyof typeof registered;
