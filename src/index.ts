@@ -37,3 +37,13 @@ client.once("ready", async () => {
 });
 
 client.login(TOKEN);
+
+import http from "http";
+
+http
+	.createServer(function (_, res) {
+		res.writeHead(200, { "Content-Type": "text/plain" });
+		res.write("Hello World!");
+		res.end();
+	})
+	.listen(3000);
