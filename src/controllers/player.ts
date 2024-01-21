@@ -73,6 +73,9 @@ class Player extends EventEmitter {
 					clearInterval(interval);
 				} else {
 					console.log("New source stream is NOT readable");
+					this.resource.playStream.removeAllListeners();
+					this.resource.playStream.destroy();
+					delete this.resource;
 				}
 			} catch (error) {
 				console.log(
