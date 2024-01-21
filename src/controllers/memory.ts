@@ -3,7 +3,7 @@ import { writeFile, readFileSync, existsSync } from "fs";
 import { promisify } from "util";
 
 const write = promisify(writeFile);
-const filePath = resolve(process.cwd(), "memory-cache.json");
+const filePath = resolve(__dirname, "../../", "memory-cache.json");
 
 class MemoryCache {
 	data: Record<string, any>;
