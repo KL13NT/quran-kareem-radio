@@ -1,11 +1,11 @@
 import { client } from "./client";
 import { player } from "./player";
-import { memory } from "./memory";
+import { connections } from "./connections";
 
 const registered = {
 	player,
 	client,
-	memory,
+	connections,
 } as const;
 
 type LocatorKeys = keyof typeof registered;

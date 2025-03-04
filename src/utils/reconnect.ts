@@ -1,34 +1,51 @@
-import { joinVoiceChannel } from "@discordjs/voice";
+import {
+	entersState,
+	getVoiceConnection,
+	joinVoiceChannel,
+	VoiceConnectionStatus,
+	type DiscordGatewayAdapterCreator,
+} from "@discordjs/voice";
 import { Locator } from "~/controllers/locator";
 
 export const reconnect = async () => {
 	const client = Locator.resolve("client");
-	const memory = Locator.resolve("memory");
+	const connections = Locator.resolve("connections");
 	const player = Locator.resolve("player");
+	const results = connections.list();
 
-	const results = memory.keys("CONNECTION*");
+	console.log("Existing bot connections", results.size);
 
-	results.forEach((result) => {
+	for await (const [guildId, channelId] of results) {
 		try {
-			const match = result.match(/CONNECTION:(\d+):(\d+)/);
-			if (!match) return;
-
-			const [, guildId, channelId] = match;
-			const guild = client.guilds.resolve(guildId);
-
+			const guild = await client.guilds.fetch(guildId);
 			if (!guild) return;
 
-			const connection = joinVoiceChannel({
-				channelId,
-				guildId,
-				adapterCreator: guild.voiceAdapterCreator,
+			const connection =
+				getVoiceConnection(guildId) ??
+				joinVoiceChannel({
+					channelId,
+					guildId,
+					adapterCreator:
+						guild.voiceAdapterCreator as DiscordGatewayAdapterCreator,
+				});
+
+			connection.on(VoiceConnectionStatus.Disconnected, async () => {
+				try {
+					await Promise.race([
+						entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+						entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+					]);
+				} catch {
+					connection.destroy();
+					player.unsubscribe(guild);
+				}
 			});
 
+			await entersState(connection, VoiceConnectionStatus.Ready, 5_000);
+			console.log("ready status");
 			player.subscribe(connection, guild);
 		} catch (error) {
-			console.log(
-				`error while reconnecting on launch ${(error as Error).message}`
-			);
+			console.log(`error while reconnecting on launch`, error);
 		}
-	});
+	}
 };

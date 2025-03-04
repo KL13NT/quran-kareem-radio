@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "@discordjs/builders";
+import { SlashCommandBuilder } from "discord.js";
 import { REST, Routes } from "discord.js";
 import { DeployCommandsResponse } from "~/types";
 

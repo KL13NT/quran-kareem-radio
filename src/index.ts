@@ -1,3 +1,4 @@
+import http from "http";
 import { ActivityType } from "discord.js";
 import { config } from "dotenv";
 
@@ -16,11 +17,17 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 const client = Locator.resolve("client");
 const player = Locator.resolve("player");
+const connections = Locator.resolve("connections");
+
+client.on("debug", (info) => console.log(info));
+client.on("error", (error) => console.log(error));
+client.on("warn", (info) => console.log(info));
 
 client.once("ready", async () => {
 	console.log("Ready!");
 
 	player.init();
+	await connections.init();
 
 	if (client.user) {
 		client.user.setActivity({
@@ -30,15 +37,13 @@ client.once("ready", async () => {
 	}
 
 	initAnalytics(client);
-	reconnect();
 
+	player.on("playing", reconnect);
 	client.on(onVoiceStateUpdateEvent.name, onVoiceStateUpdateEvent.execute);
 	client.on(onInteractionCreateEvent.name, onInteractionCreateEvent.execute);
 });
 
 client.login(TOKEN);
-
-import http from "http";
 
 http
 	.createServer(function (_, res) {

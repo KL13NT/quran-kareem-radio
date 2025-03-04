@@ -1,15 +1,13 @@
 import { getVoiceConnections } from "@discordjs/voice";
 import { Client, TextChannel, VoiceChannel } from "discord.js";
 
-const ANALYTICS_INTERVAL =
-	process.env.MODE === "PRODUCTION"
-		? 5 * 60 * 1000 /* 5 minutes */
-		: 10 * 1000; /* 10 seconds */
-
+const ANALYTICS_INTERVAL = 5 * 60 * 1000; /* 5 minutes */
 const ANALYTICS_CHANNEL_ID = process.env.ANALYTICS_CHANNEL_ID;
 const DEV_SERVER_ID = process.env.DEV_SERVER_ID;
 
 export const initAnalytics = (client: Client) => {
+	if (process.env.MODE !== "PRODUCTION") return;
+
 	if (!ANALYTICS_CHANNEL_ID || !DEV_SERVER_ID) {
 		console.error(
 			"Environment lacking ANALYTICS_CHANNEL_ID  or DEV_SERVER_ID. Analytics disabled."

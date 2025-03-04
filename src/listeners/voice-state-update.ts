@@ -8,28 +8,31 @@ const onVoiceStateUpdate = async (
 	oldState: VoiceState,
 	newState: VoiceState
 ) => {
-	const memory = Locator.resolve("memory");
+	const connections = Locator.resolve("connections");
 
-	if (newState.member?.id === CLIENT_ID && !newState.channel) {
+	if (newState.member.id !== CLIENT_ID) return;
+
+	if (!newState.channel) {
 		console.log(
 			`bot disconnected from ${oldState.guild.name} ${oldState.channel?.name}`
 		);
 
 		getVoiceConnection(oldState.guild.id)?.destroy();
 
-		memory.del(`CONNECTION:${oldState.guild.id}:${oldState.channel?.id}`);
+		connections.del(`${oldState.guild.id}:${oldState.channel?.id}`);
 	} else if (
 		newState.member?.id === CLIENT_ID &&
 		newState.channel &&
-		oldState.channel
+		oldState.channel &&
+		newState.channel.id !== oldState.channel.id
 	) {
 		console.log(
 			`bot has been moved from ${oldState.guild.name} ${oldState.channel.name} to ${newState.channel.name}`
 		);
 
 		await Promise.all([
-			memory.del(`CONNECTION:${oldState.guild.id}:${oldState.channel.id}`),
-			memory.set(`CONNECTION:${newState.guild.id}:${newState.channel.id}`, 0),
+			connections.del(oldState.guild.id),
+			connections.add(newState.guild.id, newState.channel.id),
 		]);
 	}
 };
