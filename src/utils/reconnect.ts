@@ -37,12 +37,12 @@ export const reconnect = async () => {
 					]);
 				} catch {
 					connection.destroy();
+					connection.removeAllListeners();
 					player.unsubscribe(guild);
 				}
 			});
 
 			await entersState(connection, VoiceConnectionStatus.Ready, 5_000);
-			console.log("ready status");
 			player.subscribe(connection, guild);
 		} catch (error) {
 			console.log(`error while reconnecting on launch`, error);

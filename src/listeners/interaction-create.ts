@@ -31,7 +31,7 @@ const connect = async (interaction: CommandInteraction) => {
 	const connected = Boolean(existingConnection && state && state.channelId);
 
 	if (!requestChannel) {
-		await interaction.reply(`You're not connected to a voice channel`);
+		await interaction.editReply(`You're not connected to a voice channel`);
 		return;
 	}
 
@@ -41,7 +41,7 @@ const connect = async (interaction: CommandInteraction) => {
 		existingConnection?.joinConfig?.channelId === requestChannel.id
 	) {
 		player.subscribe(existingConnection, interaction.guild);
-		await interaction.reply(
+		await interaction.editReply(
 			`I'm already connected to this channel. Refreshing playback just in case...`
 		);
 		return;
@@ -56,7 +56,7 @@ const connect = async (interaction: CommandInteraction) => {
 				PermissionFlagsBits.Speak,
 			])
 	) {
-		await interaction.reply(
+		await interaction.editReply(
 			`I don't have the permissions to connect to this channel.`
 		);
 		return;
@@ -79,7 +79,7 @@ const connect = async (interaction: CommandInteraction) => {
 	player.subscribe(newConnection, interaction.guild);
 	connections.add(requestChannel.guild.id, requestChannel.id);
 
-	await interaction.reply(`Joined ${requestChannel.name}`);
+	await interaction.editReply(`Joined ${requestChannel.name}`);
 };
 
 const leave = async (interaction: CommandInteraction) => {
@@ -90,7 +90,7 @@ const leave = async (interaction: CommandInteraction) => {
 	const connected = Boolean(existingConnection && state && state.channelId);
 
 	if (!connected) {
-		await interaction.reply(`I'm not connected to a voice channel`);
+		await interaction.editReply(`I'm not connected to a voice channel`);
 		return;
 	}
 
@@ -99,7 +99,7 @@ const leave = async (interaction: CommandInteraction) => {
 	}
 
 	connections.del(guild.id);
-	await interaction.reply(`Disconnected from voice channel`);
+	await interaction.editReply(`Disconnected from voice channel`);
 };
 
 const onInteractionCreate = async (interaction: Interaction) => {
@@ -107,6 +107,7 @@ const onInteractionCreate = async (interaction: Interaction) => {
 		return;
 	}
 
+	await interaction.deferReply();
 	const { commandName } = interaction;
 
 	try {
@@ -117,7 +118,7 @@ const onInteractionCreate = async (interaction: Interaction) => {
 		}
 	} catch (error) {
 		console.log(error);
-		await interaction.reply("I couldn't process that");
+		await interaction.editReply("I couldn't process that");
 	}
 };
 

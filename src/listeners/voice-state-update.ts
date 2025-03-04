@@ -30,10 +30,8 @@ const onVoiceStateUpdate = async (
 			`bot has been moved from ${oldState.guild.name} ${oldState.channel.name} to ${newState.channel.name}`
 		);
 
-		await Promise.all([
-			connections.del(oldState.guild.id),
-			connections.add(newState.guild.id, newState.channel.id),
-		]);
+		connections.del(oldState.guild.id);
+		connections.add(newState.guild.id, newState.channel.id);
 	}
 };
 

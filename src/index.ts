@@ -11,7 +11,7 @@ import { reconnect } from "~/utils/reconnect";
 
 config();
 
-const { TOKEN } = process.env;
+const { TOKEN, DEBUG } = process.env;
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
@@ -19,9 +19,11 @@ const client = Locator.resolve("client");
 const player = Locator.resolve("player");
 const connections = Locator.resolve("connections");
 
-client.on("debug", (info) => console.log(info));
-client.on("error", (error) => console.log(error));
-client.on("warn", (info) => console.log(info));
+if (DEBUG === "true") {
+	client.on("debug", (info) => console.log(info));
+	client.on("error", (error) => console.log(error));
+	client.on("warn", (info) => console.log(info));
+}
 
 client.once("ready", async () => {
 	console.log("Ready!");

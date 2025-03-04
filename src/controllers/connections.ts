@@ -1,7 +1,12 @@
 import { resolve } from "path";
 import { access, constants, readFile, writeFile } from "node:fs/promises";
 
-const filePath = resolve(__dirname, "../../", "connections.json");
+const { MODE } = process.env;
+
+const filePath =
+	MODE === "PRODUCTION"
+		? resolve("/data/connections.json")
+		: resolve(__dirname, "../../data/connections.json");
 
 async function exists(filePath: string) {
 	try {

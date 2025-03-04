@@ -13,10 +13,29 @@ import {
 
 const { MODE, STREAM } = process.env;
 
-export const createAudioPlayerSource = () =>
-	createAudioResource(`${STREAM}?${Date.now()}`, {
+export const createAudioPlayerSource = () => {
+	const resource = createAudioResource(`${STREAM}?${Date.now()}`, {
 		silencePaddingFrames: 0,
 	});
+
+	resource.playStream.on("close", () => {
+		console.log("Stream closed");
+	});
+
+	resource.playStream.on("end", () => {
+		console.log("Stream ended");
+	});
+
+	resource.playStream.on("error", (e) => {
+		console.log("Stream error", e);
+	});
+
+	resource.playStream.on("pause", () => {
+		console.log("Stream paused");
+	});
+
+	return resource;
+};
 
 declare interface Player {
 	on(event: "playing", listener: () => void): this;
