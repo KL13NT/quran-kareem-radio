@@ -9,7 +9,7 @@ export const initAnalytics = (client: Client) => {
 	if (process.env.MODE !== "PRODUCTION") return;
 
 	if (!ANALYTICS_CHANNEL_ID || !DEV_SERVER_ID) {
-		console.error(
+		console.log(
 			"Environment lacking ANALYTICS_CHANNEL_ID  or DEV_SERVER_ID. Analytics disabled."
 		);
 

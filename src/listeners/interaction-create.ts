@@ -40,7 +40,7 @@ const connect = async (interaction: CommandInteraction) => {
 		state.channelId === requestChannel.id &&
 		existingConnection?.joinConfig?.channelId === requestChannel.id
 	) {
-		player.subscribe(existingConnection, interaction.guild);
+		player.subscribe(existingConnection, interaction.guild!);
 		await interaction.editReply(
 			`I'm already connected to this channel. Refreshing playback just in case...`
 		);
@@ -49,7 +49,7 @@ const connect = async (interaction: CommandInteraction) => {
 
 	if (
 		!requestChannel
-			.permissionsFor(client.user)
+			.permissionsFor(client.user!)!
 			.has([
 				PermissionFlagsBits.ViewChannel,
 				PermissionFlagsBits.Connect,
@@ -74,9 +74,11 @@ const connect = async (interaction: CommandInteraction) => {
 			.voiceAdapterCreator as DiscordGatewayAdapterCreator,
 	});
 
+	newConnection.configureNetworking();
+
 	await entersState(newConnection, VoiceConnectionStatus.Ready, 5_000);
 
-	player.subscribe(newConnection, interaction.guild);
+	player.subscribe(newConnection, interaction.guild!);
 	connections.add(requestChannel.guild.id, requestChannel.id);
 
 	await interaction.editReply(`Joined ${requestChannel.name}`);

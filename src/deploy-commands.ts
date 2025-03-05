@@ -27,5 +27,5 @@ const commands = [
 				} application commands.`
 			)
 		)
-		.catch(console.error);
+		.catch(console.log);
 })();

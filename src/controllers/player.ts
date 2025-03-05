@@ -2,34 +2,25 @@ import { EventEmitter } from "events";
 import { Guild } from "discord.js";
 import {
 	AudioPlayer,
-	AudioPlayerStatus,
 	AudioResource,
 	createAudioPlayer,
 	createAudioResource,
-	entersState,
 	NoSubscriberBehavior,
 	VoiceConnection,
 	type PlayerSubscription,
 } from "@discordjs/voice";
 
-const { MODE, STREAM } = process.env;
+const { STREAM } = process.env;
+
+const log = (...params: any[]) => {
+	console.log(`[Player] ${new Date().toISOString()}`, ...params);
+};
 
 export const createAudioPlayerSource = () => {
-	const resource = createAudioResource(`${STREAM}?${Date.now()}`, {
-		silencePaddingFrames: 0,
-	});
+	const url = `${STREAM}?${Date.now()}`;
+	log(`Creating ${url} stream`);
 
-	resource.playStream.on("end", () => {
-		console.log("Stream ended");
-	});
-
-	resource.playStream.on("error", (e) => {
-		console.log("Stream error", e);
-	});
-
-	resource.playStream.on("pause", () => {
-		console.log("Stream paused");
-	});
+	const resource = createAudioResource(url);
 
 	return resource;
 };
@@ -47,64 +38,64 @@ class Player extends EventEmitter {
 		const interval = setInterval(() => {
 			try {
 				const player = createAudioPlayer({
-					debug: MODE === "DEVELOPMENT",
+					debug: true,
 					behaviors: {
 						noSubscriber: NoSubscriberBehavior.Play,
 					},
 				});
 
-				const resource = createAudioPlayerSource();
-
-				resource.playStream.on("close", async () => {
-					console.log("Stream closed");
-					resource.playStream.destroy();
-
-					player.stop(true);
-
-					await entersState(player, AudioPlayerStatus.Idle, 5_000);
-					player.play(createAudioPlayerSource());
-				});
-
-				player.play(resource);
-
 				player.on("error", (error) => {
-					console.error(`Player error`, error);
+					log(`Player error`, error);
 					player.play(createAudioPlayerSource());
 				});
 
 				player.on("debug", (info) => {
-					console.log(info);
+					log(info);
+
+					if (
+						info.includes('"status":"idle"') ||
+						info.includes('"status":"autopaused"')
+					) {
+						player.play(createAudioPlayerSource());
+					}
 				});
 
 				player.on("stateChange", (change) => {
-					console.log(`Player status changed to ${change.status}`);
-				});
-
-				player.on(AudioPlayerStatus.Playing, () => {
-					console.log("Player status changed to playing, emitting event");
-					this.emit("playing");
+					log(`Player status changed to ${change.status}`);
 				});
 
 				this.player = player;
+				player.play(createAudioPlayerSource());
+				this.emit("playing");
 				clearInterval(interval);
 			} catch (error) {
-				console.log(`error: while trying to init resource`, error);
+				log(`error: while trying to init resource`, error);
 			}
 		}, 5000);
 	};
 
 	subscribe = (connection: VoiceConnection, guild: Guild) => {
-		console.log(`Subscribing ${guild.name}`);
 		try {
+			if (this.subscriptions.has(guild.id)) {
+				log(
+					`Dismissing subscription request for ${guild.name} since it already exists.`
+				);
+				return;
+			}
+
+			log(`Subscribing ${guild.name}`);
 			const subscription = connection.subscribe(this.player);
-			this.subscriptions.set(guild.id, subscription);
+
+			if (subscription) {
+				this.subscriptions.set(guild.id, subscription);
+			}
 		} catch (error) {
-			console.error("Subscription failed:", error);
+			log("Subscription failed:", error);
 		}
 	};
 
 	unsubscribe = (guild: Guild) => {
-		console.log(`Unsubscribing ${guild.name}`);
+		log(`Unsubscribing ${guild.name}`);
 		const subscription = this.subscriptions.get(guild.id);
 		if (!subscription) return;
 

@@ -29,6 +29,8 @@ export const reconnect = async () => {
 						guild.voiceAdapterCreator as DiscordGatewayAdapterCreator,
 				});
 
+			connection.configureNetworking();
+
 			connection.on(VoiceConnectionStatus.Disconnected, async () => {
 				try {
 					await Promise.race([

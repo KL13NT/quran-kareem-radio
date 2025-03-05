@@ -1,12 +1,23 @@
 import { resolve } from "path";
-import { access, constants, readFile, writeFile } from "node:fs/promises";
+import {
+	access,
+	constants,
+	mkdir,
+	readFile,
+	writeFile,
+} from "node:fs/promises";
 
 const { MODE } = process.env;
 
+const directory =
+	MODE === "PRODUCTION"
+		? resolve(__dirname, "/data")
+		: resolve(__dirname, "../../data");
+
 const filePath =
 	MODE === "PRODUCTION"
-		? resolve("/data/connections.json")
-		: resolve(__dirname, "../../data/connections.json");
+		? resolve(directory, `connections.json`)
+		: resolve(directory, `connections.json`);
 
 async function exists(filePath: string) {
 	try {
@@ -33,9 +44,13 @@ class ConnectionsCache {
 				const contents = await readFile(filePath, "utf-8");
 				const parsed = JSON.parse(contents);
 				this.data = new Map(Object.entries(parsed));
+			} else {
+				await mkdir(directory, {
+					recursive: true,
+				});
 			}
 		} catch (error) {
-			console.error("Couldn't load memory cache file", error);
+			console.log("Couldn't load memory cache file", error);
 		}
 
 		setInterval(async () => {
@@ -45,7 +60,7 @@ class ConnectionsCache {
 					JSON.stringify(Object.fromEntries(this.data.entries()))
 				);
 			} catch (error) {
-				console.error("Couldn't write memory cache file", error);
+				console.log("Couldn't write memory cache file", error);
 			}
 		}, 1000 * 5);
 	}
