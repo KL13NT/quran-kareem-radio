@@ -40,7 +40,7 @@ client.once("ready", async () => {
 
 	initAnalytics(client);
 
-	player.on("playing", reconnect);
+	player.once("playing", reconnect);
 	client.on(onVoiceStateUpdateEvent.name, onVoiceStateUpdateEvent.execute);
 	client.on(onInteractionCreateEvent.name, onInteractionCreateEvent.execute);
 });

@@ -6,6 +6,7 @@ import {
 	AudioResource,
 	createAudioPlayer,
 	createAudioResource,
+	entersState,
 	NoSubscriberBehavior,
 	VoiceConnection,
 	type PlayerSubscription,
@@ -16,10 +17,6 @@ const { MODE, STREAM } = process.env;
 export const createAudioPlayerSource = () => {
 	const resource = createAudioResource(`${STREAM}?${Date.now()}`, {
 		silencePaddingFrames: 0,
-	});
-
-	resource.playStream.on("close", () => {
-		console.log("Stream closed");
 	});
 
 	resource.playStream.on("end", () => {
@@ -56,11 +53,27 @@ class Player extends EventEmitter {
 					},
 				});
 
-				player.play(createAudioPlayerSource());
+				const resource = createAudioPlayerSource();
+
+				resource.playStream.on("close", async () => {
+					console.log("Stream closed");
+					resource.playStream.destroy();
+
+					player.stop(true);
+
+					await entersState(player, AudioPlayerStatus.Idle, 5_000);
+					player.play(createAudioPlayerSource());
+				});
+
+				player.play(resource);
 
 				player.on("error", (error) => {
 					console.error(`Player error`, error);
 					player.play(createAudioPlayerSource());
+				});
+
+				player.on("debug", (info) => {
+					console.log(info);
 				});
 
 				player.on("stateChange", (change) => {
@@ -68,6 +81,7 @@ class Player extends EventEmitter {
 				});
 
 				player.on(AudioPlayerStatus.Playing, () => {
+					console.log("Player status changed to playing, emitting event");
 					this.emit("playing");
 				});
 
