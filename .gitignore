@@ -1,5 +1,6 @@
 node_modules
 .env
+.env.dev
 memory-cache.json
 connections.json
 .vscode/
