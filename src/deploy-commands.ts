@@ -15,6 +15,9 @@ const commands = [
 	new SlashCommandBuilder()
 		.setName("leave")
 		.setDescription("Disconnects the bot from a voice channel when connected"),
+	new SlashCommandBuilder()
+		.setName("help")
+		.setDescription("Help on command usage"),
 ].map((command) => command.toJSON());
 
 (async () => {

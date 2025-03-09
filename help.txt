@@ -1,0 +1,22 @@
+إذاعة القرآن الكريم من القاهرة على مدار الساعة.
+
+يدعم أمرين:
+- الدخول `/connect`
+- الخروج `/leave`
+
+ينطبق عليهم شروط للتشغيل:
+- لازم يكون الشخص المُشغِّل في قناة صوتية.
+- ولازم البوت يكون معاه صلاحية انه يشوف القناة دي. في الأساس ده بيكون متحقق الا لو انت مغيّر الأذونات بتاعت القناة.
+
+---
+
+A 24/7 stream of the Egyptian "إذاعة القرآن الكريم من القاهرة" radio station.
+
+Available commands are:
+- `/connect`
+- `/leave`
+
+These work under the following conditions:
+
+- Activating user must be connected to a voice channel
+- The bot must be able to enter the channel and use Voice Activity. This is the default for all channels unless you have changed permissions

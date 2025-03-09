@@ -8,11 +8,12 @@ import {
 import {
 	Guild,
 	GuildMember,
-	Interaction,
 	PermissionFlagsBits,
 	VoiceState,
 	type CommandInteraction,
 } from "discord.js";
+import { readFile } from "fs/promises";
+import { resolve } from "path";
 import { Locator } from "src/controllers/locator";
 import { logger } from "~/utils/logger";
 
@@ -107,19 +108,38 @@ const leave = async (interaction: CommandInteraction) => {
 	await interaction.editReply(`Disconnected from voice channel`);
 };
 
-const onInteractionCreate = async (interaction: Interaction) => {
+let helpText: string;
+const help = async (interaction: CommandInteraction) => {
+	if (!helpText) {
+		log("Loading help text for the first time");
+		helpText = await readFile(resolve(__dirname, "../../help.txt"), "utf-8");
+	}
+
+	await interaction.editReply(helpText);
+};
+
+const commands = {
+	connect,
+	leave,
+	help,
+};
+
+type CommandType = keyof typeof commands;
+
+const onInteractionCreate = async (interaction: CommandInteraction) => {
 	if (!interaction.isCommand() || !interaction.member || !interaction.guild) {
 		return;
 	}
 
 	await interaction.deferReply();
-	const { commandName } = interaction;
-
 	try {
-		if (commandName === "connect") {
-			await connect(interaction);
-		} else if (commandName === "leave") {
-			await leave(interaction);
+		const { commandName } = interaction;
+		const command = commands[commandName as CommandType];
+
+		if (!command) {
+			await help(interaction);
+		} else {
+			await command(interaction);
 		}
 	} catch (error) {
 		log(error);

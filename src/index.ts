@@ -9,9 +9,7 @@ import { Locator } from "~/controllers/locator";
 import { reconnect } from "~/utils/reconnect";
 import { logger } from "./utils/logger";
 
-const { TOKEN, DEBUG } = process.env;
-
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+const { TOKEN, DASHBOARD_TOKEN, DEBUG } = process.env;
 
 const client = Locator.resolve("client");
 const player = Locator.resolve("player");
@@ -32,9 +30,15 @@ client.once("ready", async () => {
 	await connections.init();
 
 	if (client.user) {
-		client.user.setActivity({
-			type: ActivityType.Playing,
-			name: "Quran Kareem Radio",
+		client.user.setPresence({
+			status: "online",
+			activities: [
+				{
+					name: "status",
+					type: ActivityType.Custom,
+					state: "/help | /connect",
+				},
+			],
 		});
 	}
 
@@ -48,7 +52,13 @@ client.once("ready", async () => {
 client.login(TOKEN);
 
 http
-	.createServer(function (_, res) {
+	.createServer(function (req, res) {
+		const url = new URL(req.url!);
+		if (url.searchParams.get("token") === DASHBOARD_TOKEN) {
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.write(JSON.stringify(Locator.resolve("connections").list()));
+		}
+
 		res.writeHead(200, { "Content-Type": "text/plain" });
 		res.write("Hello World!");
 		res.end();
