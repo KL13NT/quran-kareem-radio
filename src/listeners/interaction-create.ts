@@ -14,8 +14,11 @@ import {
 	type CommandInteraction,
 } from "discord.js";
 import { Locator } from "src/controllers/locator";
+import { logger } from "~/utils/logger";
 
 const { CLIENT_ID } = process.env;
+
+const log = logger.create("interaction-create");
 
 const connect = async (interaction: CommandInteraction) => {
 	const player = Locator.resolve("player");
@@ -119,7 +122,7 @@ const onInteractionCreate = async (interaction: Interaction) => {
 			await leave(interaction);
 		}
 	} catch (error) {
-		console.log(error);
+		log(error);
 		await interaction.editReply("I couldn't process that");
 	}
 };

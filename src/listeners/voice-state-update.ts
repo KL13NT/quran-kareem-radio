@@ -1,8 +1,11 @@
 import { getVoiceConnection } from "@discordjs/voice";
 import { VoiceState, type VoiceChannel } from "discord.js";
 import { Locator } from "src/controllers/locator";
+import { logger } from "~/utils/logger";
 
 const { CLIENT_ID } = process.env;
+
+const log = logger.create("voice-state-update");
 
 const onVoiceStateUpdate = async (
 	oldState: VoiceState,
@@ -36,10 +39,10 @@ const onVoiceStateUpdate = async (
 
 	if (!isBot && connectedChannel && affectedChannelConnected) {
 		if (connectedChannel.members.size <= 1) {
-			console.log(`Unsubscribing ${guild.name} due to empty channel`);
+			log(`Unsubscribing ${guild.name} due to empty channel`);
 			player.unsubscribe(guild);
 		} else {
-			console.log(`Subscribing ${guild.name} due to user joining channel`);
+			log(`Subscribing ${guild.name} due to user joining channel`);
 			player.subscribe(getVoiceConnection(guild.id)!, guild);
 		}
 
@@ -47,7 +50,7 @@ const onVoiceStateUpdate = async (
 	}
 
 	if (isBot && userLeft) {
-		console.log(
+		log(
 			`Bot disconnected from ${oldState.guild.name} ${oldState.channel?.name}`
 		);
 
@@ -56,7 +59,7 @@ const onVoiceStateUpdate = async (
 		player.unsubscribe(guild);
 		connections.del(guild.id);
 	} else if (isBot && userMoved) {
-		console.log(
+		log(
 			`Bot has been moved from ${oldState.guild.name} ${oldState.channel.name} to ${newState.channel.name}`
 		);
 
@@ -68,10 +71,10 @@ const onVoiceStateUpdate = async (
 		connections.add(newState.guild.id, newState.channel.id);
 
 		if (targetChannel.members.size <= 1) {
-			console.log(`Unsubscribing ${guild.name} due to empty channel`);
+			log(`Unsubscribing ${guild.name} due to empty channel`);
 			player.unsubscribe(guild);
 		} else {
-			console.log(
+			log(
 				`Subscribing ${guild.name}:${targetChannel.name} due to user joining channel`
 			);
 			player.subscribe(getVoiceConnection(guild.id)!, guild);

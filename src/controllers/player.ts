@@ -9,12 +9,11 @@ import {
 	VoiceConnection,
 	type PlayerSubscription,
 } from "@discordjs/voice";
+import { logger } from "~/utils/logger";
 
 const { STREAM } = process.env;
 
-const log = (...params: any[]) => {
-	console.log(`[Player] ${new Date().toISOString()}`, ...params);
-};
+const log = logger.create("player");
 
 export const createAudioPlayerSource = () => {
 	const url = `${STREAM}?${Date.now()}`;

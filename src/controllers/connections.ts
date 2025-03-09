@@ -1,11 +1,7 @@
 import { resolve } from "path";
-import {
-	access,
-	constants,
-	mkdir,
-	readFile,
-	writeFile,
-} from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
+import { ensureFile } from "~/utils/ensure-file";
+import { logger } from "~/utils/logger";
 
 const { MODE } = process.env;
 
@@ -19,14 +15,7 @@ const filePath =
 		? resolve(directory, `connections.json`)
 		: resolve(directory, `connections.json`);
 
-async function exists(filePath: string) {
-	try {
-		await access(filePath, constants.F_OK);
-		return true;
-	} catch (err) {
-		return false;
-	}
-}
+const log = logger.create("connections");
 
 class ConnectionsCache {
 	/**
@@ -40,17 +29,13 @@ class ConnectionsCache {
 
 	async init() {
 		try {
-			if (await exists(filePath)) {
-				const contents = await readFile(filePath, "utf-8");
-				const parsed = JSON.parse(contents);
-				this.data = new Map(Object.entries(parsed));
-			} else {
-				await mkdir(directory, {
-					recursive: true,
-				});
-			}
+			await ensureFile(filePath);
+
+			const contents = await readFile(filePath, "utf-8");
+			const parsed = JSON.parse(contents);
+			this.data = new Map(Object.entries(parsed));
 		} catch (error) {
-			console.log("Couldn't load memory cache file", error);
+			log("Couldn't load memory cache file", error);
 		}
 
 		setInterval(async () => {
@@ -60,7 +45,7 @@ class ConnectionsCache {
 					JSON.stringify(Object.fromEntries(this.data.entries()))
 				);
 			} catch (error) {
-				console.log("Couldn't write memory cache file", error);
+				log("Couldn't write memory cache file", error);
 			}
 		}, 1000 * 5);
 	}

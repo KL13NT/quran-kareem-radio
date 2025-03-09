@@ -4,7 +4,7 @@ import { DeployCommandsResponse } from "~/types";
 
 const { CLIENT_ID, TOKEN } = process.env;
 
-const rest = new REST({ version: "10" }).setToken(TOKEN);
+const rest = new REST({ version: "10" }).setToken(TOKEN!);
 
 const commands = [
 	new SlashCommandBuilder()
@@ -19,7 +19,7 @@ const commands = [
 
 (async () => {
 	await rest
-		.put(Routes.applicationCommands(CLIENT_ID), { body: commands })
+		.put(Routes.applicationCommands(CLIENT_ID!), { body: commands })
 		.then((data) =>
 			console.log(
 				`Successfully registered ${

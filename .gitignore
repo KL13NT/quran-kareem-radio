@@ -4,3 +4,4 @@ node_modules
 memory-cache.json
 connections.json
 .vscode/
+data/

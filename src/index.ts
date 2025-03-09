@@ -1,6 +1,8 @@
+import { config } from "dotenv";
+config();
+
 import http from "http";
 import { ActivityType } from "discord.js";
-import { config } from "dotenv";
 
 import { initAnalytics } from "~/utils/analytics";
 import { onInteractionCreateEvent } from "~/listeners/interaction-create";
@@ -8,8 +10,7 @@ import { onVoiceStateUpdateEvent } from "~/listeners/voice-state-update";
 
 import { Locator } from "~/controllers/locator";
 import { reconnect } from "~/utils/reconnect";
-
-config();
+import { logger } from "./utils/logger";
 
 const { TOKEN, DEBUG } = process.env;
 
@@ -19,14 +20,16 @@ const client = Locator.resolve("client");
 const player = Locator.resolve("player");
 const connections = Locator.resolve("connections");
 
+const log = logger.create("client");
+
 if (DEBUG === "true") {
-	client.on("debug", (info) => console.log(info));
-	client.on("error", (error) => console.log(error));
-	client.on("warn", (info) => console.log(info));
+	client.on("debug", (info) => log(info));
+	client.on("error", (error) => log(error));
+	client.on("warn", (info) => log(info));
 }
 
 client.once("ready", async () => {
-	console.log("Ready!");
+	log("Ready!");
 
 	player.init();
 	await connections.init();

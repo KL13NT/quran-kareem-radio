@@ -6,6 +6,9 @@ import {
 	type DiscordGatewayAdapterCreator,
 } from "@discordjs/voice";
 import { Locator } from "~/controllers/locator";
+import { logger } from "./logger";
+
+const log = logger.create("reconnect");
 
 export const reconnect = async () => {
 	const client = Locator.resolve("client");
@@ -13,7 +16,7 @@ export const reconnect = async () => {
 	const player = Locator.resolve("player");
 	const results = connections.list();
 
-	console.log("Existing bot connections", results.size);
+	log("Existing bot connections", results.size);
 
 	for await (const [guildId, channelId] of results) {
 		try {
@@ -47,7 +50,7 @@ export const reconnect = async () => {
 			await entersState(connection, VoiceConnectionStatus.Ready, 5_000);
 			player.subscribe(connection, guild);
 		} catch (error) {
-			console.log(`error while reconnecting on launch`, error);
+			log(`error while reconnecting on launch`, error);
 		}
 	}
 };
