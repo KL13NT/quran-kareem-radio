@@ -25,6 +25,7 @@ export const createAudioPlayerSource = () => {
 };
 
 declare interface Player {
+	// eslint-disable-next-line no-unused-vars
 	on(event: "playing", listener: () => void): this;
 }
 

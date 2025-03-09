@@ -9,7 +9,7 @@ import { Locator } from "~/controllers/locator";
 import { reconnect } from "~/utils/reconnect";
 import { logger } from "./utils/logger";
 
-const { TOKEN, DASHBOARD_TOKEN, DEBUG } = process.env;
+const { TOKEN, DEBUG } = process.env;
 
 const client = Locator.resolve("client");
 const player = Locator.resolve("player");
@@ -52,13 +52,7 @@ client.once("ready", async () => {
 client.login(TOKEN);
 
 http
-	.createServer(function (req, res) {
-		const url = new URL(req.url!);
-		if (url.searchParams.get("token") === DASHBOARD_TOKEN) {
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.write(JSON.stringify(Locator.resolve("connections").list()));
-		}
-
+	.createServer(function (_, res) {
 		res.writeHead(200, { "Content-Type": "text/plain" });
 		res.write("Hello World!");
 		res.end();
