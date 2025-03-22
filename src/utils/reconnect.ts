@@ -7,6 +7,7 @@ import {
 } from "@discordjs/voice";
 import { Locator } from "~/controllers/locator";
 import { logger } from "./logger";
+import type { VoiceChannel } from "discord.js";
 
 const log = logger.create("reconnect");
 
@@ -16,7 +17,7 @@ export const reconnect = async () => {
 	const player = Locator.resolve("player");
 	const results = connections.list();
 
-	log("Existing bot connections", results.size);
+	log(`Found ${results.size} existing connections`);
 
 	for await (const [guildId, channelId] of results) {
 		try {
@@ -48,6 +49,15 @@ export const reconnect = async () => {
 			});
 
 			await entersState(connection, VoiceConnectionStatus.Ready, 5_000);
+
+			const channel = (await guild.channels.fetch(channelId)) as VoiceChannel;
+			if (channel.members.size === 1) {
+				log(
+					`No members in channel ${channel.name} in guild ${guild.name} - skipping...`
+				);
+				return;
+			}
+
 			player.subscribe(connection, guild);
 		} catch (error) {
 			log(`error while reconnecting on launch`, error);
