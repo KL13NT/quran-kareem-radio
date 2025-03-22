@@ -29,6 +29,24 @@ declare interface Player {
 	on(event: "playing", listener: () => void): this;
 }
 
+const attachPlayerListeners = (player: AudioPlayer) => {
+	player.on("error", (error) => {
+		log(`Player error`, error);
+		player.play(createAudioPlayerSource());
+	});
+
+	player.on("debug", (info) => {
+		log(info);
+
+		if (
+			info.includes('"status":"idle"') ||
+			info.includes('"status":"autopaused"')
+		) {
+			player.play(createAudioPlayerSource());
+		}
+	});
+};
+
 class Player extends EventEmitter {
 	resource!: AudioResource;
 	player!: AudioPlayer;
@@ -44,30 +62,13 @@ class Player extends EventEmitter {
 					},
 				});
 
-				player.on("error", (error) => {
-					log(`Player error`, error);
-					player.play(createAudioPlayerSource());
-				});
-
-				player.on("debug", (info) => {
-					log(info);
-
-					if (
-						info.includes('"status":"idle"') ||
-						info.includes('"status":"autopaused"')
-					) {
-						player.play(createAudioPlayerSource());
-					}
-				});
-
-				player.on("stateChange", (change) => {
-					log(`Player status changed to ${change.status}`);
-				});
-
 				this.player = player;
 				player.play(createAudioPlayerSource());
-				this.emit("playing");
-				clearInterval(interval);
+				player.once("playing", () => {
+					this.emit("playing");
+					clearInterval(interval);
+					attachPlayerListeners(player);
+				});
 			} catch (error) {
 				log(`error: while trying to init resource`, error);
 			}

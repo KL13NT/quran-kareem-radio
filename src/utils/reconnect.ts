@@ -55,7 +55,7 @@ export const reconnect = async () => {
 				log(
 					`No members in channel ${channel.name} in guild ${guild.name} - skipping...`
 				);
-				return;
+				continue;
 			}
 
 			player.subscribe(connection, guild);
