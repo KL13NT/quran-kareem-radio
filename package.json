@@ -12,6 +12,7 @@
 		"ffmpeg-static": "^4.4.1",
 		"fluent-ffmpeg": "^2.1.2",
 		"libsodium-wrappers": "^0.7.15",
+		"lodash.memoize": "^4.1.2",
 		"m3u8stream": "^0.8.6",
 		"node-fetch": "^2.6.7",
 		"node-gyp": "^9.0.0",
@@ -24,6 +25,7 @@
 	"devDependencies": {
 		"@eslint/js": "^9.22.0",
 		"@flydotio/dockerfile": "^0.5.0",
+		"@types/lodash.memoize": "^4.1.9",
 		"@typescript-eslint/eslint-plugin": "^5.62.0",
 		"@typescript-eslint/parser": "^5.62.0",
 		"eslint": "^8.57.1",
@@ -42,7 +44,8 @@
 		"prestart": "ts-node --transpileOnly -r tsconfig-paths/register -r dotenv/config src/deploy-commands.ts dotenv_config_path=./.env --clear --rs",
 		"lint": "eslint --ext .js,.ts ./src --config .eslintrc.js",
 		"pretty": "prettier --write \"./**/*.{ts,js,json}\"",
-		"checks": "eslint --ext .js,.ts ./src --config .eslintrc.js && prettier --check \"./**/*.{ts,js,json}\""
+		"checks": "eslint --ext .js,.ts ./src --config .eslintrc.js && prettier --check \"./**/*.{ts,js,json}\"",
+		"deploy": "fly deploy"
 	},
 	"repository": {
 		"type": "git",
