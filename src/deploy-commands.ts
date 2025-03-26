@@ -11,13 +11,29 @@ const commands = [
 		.setName("connect")
 		.setDescription(
 			"Connects the bot to a voice channel indefinitely or until disconnected!"
+		)
+		.addSubcommand((subcommand) =>
+			subcommand.setName("radio").setDescription("Play Quran Radio")
+		)
+		.addSubcommand((subcommand) =>
+			subcommand
+				.setName("recitation")
+				.setDescription("Play a specific recitation instead of Quran Radio")
+				.addStringOption((option) =>
+					option
+						.setName("reciter")
+						.setDescription("Name of the reciter")
+						.setRequired(true)
+						.setAutocomplete(true)
+				)
+				.addStringOption((option) =>
+					option
+						.setName("moshaf")
+						.setDescription("The moshaf edition (rewaya) to read")
+						.setRequired(true)
+						.setAutocomplete(true)
+				)
 		),
-	new SlashCommandBuilder()
-		.setName("leave")
-		.setDescription("Disconnects the bot from a voice channel when connected"),
-	new SlashCommandBuilder()
-		.setName("help")
-		.setDescription("Help on command usage"),
 ].map((command) => command.toJSON());
 
 (async () => {

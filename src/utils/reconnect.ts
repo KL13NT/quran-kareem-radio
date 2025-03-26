@@ -5,16 +5,15 @@ import {
 	VoiceConnectionStatus,
 	type DiscordGatewayAdapterCreator,
 } from "@discordjs/voice";
-import { Locator } from "~/controllers/locator";
 import { logger } from "./logger";
 import type { VoiceChannel } from "discord.js";
+import { client } from "~/controllers/client";
+import { connections } from "~/controllers/connections";
 
 const log = logger.create("reconnect");
 
+// TODO: move as part of PlayerManager, store entire state instead of just channel and GUILD ID
 export const reconnect = async () => {
-	const client = Locator.resolve("client");
-	const connections = Locator.resolve("connections");
-	const player = Locator.resolve("player");
 	const results = connections.list();
 
 	log(`Found ${results.size} existing connections`);

@@ -5,15 +5,13 @@ import { initAnalytics } from "~/utils/analytics";
 import { onInteractionCreateEvent } from "~/listeners/interaction-create";
 import { onVoiceStateUpdateEvent } from "~/listeners/voice-state-update";
 
-import { Locator } from "~/controllers/locator";
 import { reconnect } from "~/utils/reconnect";
 import { logger } from "./utils/logger";
+import { client } from "./controllers/client";
+import { connections } from "./controllers/connections";
+import { playerManager } from "./controllers/player-manager";
 
 const { TOKEN, DEBUG } = process.env;
-
-const client = Locator.resolve("client");
-const player = Locator.resolve("player");
-const connections = Locator.resolve("connections");
 
 const log = logger.create("client");
 
@@ -26,7 +24,6 @@ if (DEBUG === "true") {
 client.once("ready", async () => {
 	log("Ready!");
 
-	player.init();
 	await connections.init();
 
 	if (client.user) {
@@ -44,7 +41,7 @@ client.once("ready", async () => {
 
 	initAnalytics(client);
 
-	player.once("playing", reconnect);
+	playerManager.once("playing", reconnect);
 	client.on(onVoiceStateUpdateEvent.name, onVoiceStateUpdateEvent.execute);
 	client.on(onInteractionCreateEvent.name, onInteractionCreateEvent.execute);
 });
