@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { InteractionContextType, SlashCommandBuilder } from "discord.js";
 import { REST, Routes } from "discord.js";
 import { DeployCommandsResponse } from "~/types";
 
@@ -33,7 +33,16 @@ const commands = [
 						.setRequired(true)
 						.setAutocomplete(true)
 				)
-		),
+		)
+		.setContexts([InteractionContextType.Guild]),
+	new SlashCommandBuilder()
+		.setName("leave")
+		.setDescription("Disconnects the bot from a voice channel when connected")
+		.setContexts([InteractionContextType.Guild]),
+	new SlashCommandBuilder()
+		.setName("help")
+		.setDescription("Help on command usage")
+		.setContexts([InteractionContextType.Guild]),
 ].map((command) => command.toJSON());
 
 (async () => {

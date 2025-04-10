@@ -1,11 +1,9 @@
 import { getVoiceConnection } from "@discordjs/voice";
 import { VoiceState, type VoiceChannel } from "discord.js";
 import { connections } from "~/controllers/connections";
-import { logger } from "~/utils/logger";
+import { playerManager } from "~/controllers/player-manager";
 
 const { CLIENT_ID } = process.env;
-
-const log = logger.create("voice-state-update");
 
 const onVoiceStateUpdate = async (
 	oldState: VoiceState,
@@ -36,29 +34,31 @@ const onVoiceStateUpdate = async (
 			(userMoved && connectedChannelId === oldState.channel?.id) ||
 			(userMoved && connectedChannelId === newState.channel?.id);
 
+		// TODO: fix conditions on user leave interpreted as user join
+
 		if (!isBot && connectedChannel && affectedChannelConnected) {
 			if (connectedChannel.members.size <= 1) {
-				log(`Unsubscribing ${guild.name} due to empty channel`);
-				player.unsubscribe(guild);
+				console.log(`Unsubscribing ${guild.name} due to empty channel`);
+				playerManager.unsubscribe(guild);
 			} else {
-				log(`Subscribing ${guild.name} due to user joining channel`);
-				player.subscribe(getVoiceConnection(guild.id)!, guild);
+				console.log(`Subscribing ${guild.name} due to user joining channel`);
+				playerManager.refresh(guild, getVoiceConnection(guild.id)!);
 			}
 
 			return;
 		}
 
 		if (isBot && userLeft) {
-			log(
+			console.log(
 				`Bot disconnected from ${oldState.guild.name} ${oldState.channel?.name}`
 			);
 
 			getVoiceConnection(oldState.guild.id)?.destroy();
 
-			player.unsubscribe(guild);
+			playerManager.unsubscribe(guild);
 			connections.del(guild.id);
 		} else if (isBot && userMoved) {
-			log(
+			console.log(
 				`Bot has been moved from ${oldState.guild.name} ${oldState.channel.name} to ${newState.channel.name}`
 			);
 
@@ -70,13 +70,13 @@ const onVoiceStateUpdate = async (
 			connections.add(newState.guild.id, newState.channel.id);
 
 			if (targetChannel.members.size <= 1) {
-				log(`Unsubscribing ${guild.name} due to empty channel`);
-				player.unsubscribe(guild);
+				console.log(`Unsubscribing ${guild.name} due to empty channel`);
+				playerManager.unsubscribe(guild);
 			} else {
-				log(
+				console.log(
 					`Subscribing ${guild.name}:${targetChannel.name} due to user joining channel`
 				);
-				player.subscribe(getVoiceConnection(guild.id)!, guild);
+				playerManager.refresh(guild, getVoiceConnection(guild.id)!);
 			}
 		}
 	} catch (error) {

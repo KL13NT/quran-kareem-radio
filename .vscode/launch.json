@@ -8,7 +8,7 @@
             "runtimeExecutable": "npm",
             "runtimeArgs": [
                 "run",
-                "dev"
+                "dev",
             ],
             "console": "integratedTerminal",
             "env": {

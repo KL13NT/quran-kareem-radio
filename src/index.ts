@@ -5,26 +5,24 @@ import { initAnalytics } from "~/utils/analytics";
 import { onInteractionCreateEvent } from "~/listeners/interaction-create";
 import { onVoiceStateUpdateEvent } from "~/listeners/voice-state-update";
 
-import { reconnect } from "~/utils/reconnect";
-import { logger } from "./utils/logger";
 import { client } from "./controllers/client";
 import { connections } from "./controllers/connections";
 import { playerManager } from "./controllers/player-manager";
+import { loadRecitations } from "./utils/loadRecitations";
 
 const { TOKEN, DEBUG } = process.env;
 
-const log = logger.create("client");
-
 if (DEBUG === "true") {
-	client.on("debug", (info) => log(info));
-	client.on("error", (error) => log(error));
-	client.on("warn", (info) => log(info));
+	client.on("debug", (info) => console.log(info));
+	client.on("error", (error) => console.error(error));
+	client.on("warn", (info) => console.log(info));
 }
 
 client.once("ready", async () => {
-	log("Ready!");
+	console.log("Ready!");
 
 	await connections.init();
+	await loadRecitations();
 
 	if (client.user) {
 		client.user.setPresence({
@@ -41,7 +39,7 @@ client.once("ready", async () => {
 
 	initAnalytics(client);
 
-	playerManager.once("playing", reconnect);
+	await playerManager.reconnect();
 	client.on(onVoiceStateUpdateEvent.name, onVoiceStateUpdateEvent.execute);
 	client.on(onInteractionCreateEvent.name, onInteractionCreateEvent.execute);
 });

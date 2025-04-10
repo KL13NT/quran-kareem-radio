@@ -1,45 +1,158 @@
 import {
-	getVoiceConnection,
-	joinVoiceChannel,
-	type DiscordGatewayAdapterCreator,
 	entersState,
+	joinVoiceChannel,
 	VoiceConnectionStatus,
+	type DiscordGatewayAdapterCreator,
 } from "@discordjs/voice";
 import {
 	type AutocompleteInteraction,
 	type ChatInputCommandInteraction,
 	type Guild,
 	type GuildMember,
-	type VoiceState,
 	PermissionFlagsBits,
 } from "discord.js";
 import { client } from "~/controllers/client";
 import { connections } from "~/controllers/connections";
 import { playerManager } from "~/controllers/player-manager";
-import type { CommandType, RecitationEdition } from "~/types";
-import memoize from "lodash.memoize";
+import type { CommandType } from "~/types";
+import { loadRecitations } from "~/utils/loadRecitations";
 
-/**
- * Memoizes the loading of recitations. Cleared every 24 hours.
- */
-const loadRecitations = memoize(async () => {
-	// "https://raw.githubusercontent.com/islamic-network/cdn/master/info/cdn_surah_audio.json"
-	const editions: RecitationEdition[] = await fetch(
-		"https://www.mp3quran.net/api/v3/reciters?language=ar"
-	)
-		.then((res) => res.json())
-		.then((data) => data.reciters);
-
-	return editions;
-});
-
-setInterval(() => {
-	if (loadRecitations.cache.clear) {
-		loadRecitations.cache.clear();
-	}
-}, 1000 * 60 * 60 * 24 /* 24 hours */);
+const surahs = [
+	"الفاتحة",
+	"البقرة",
+	"آل عمران",
+	"النساء",
+	"المائدة",
+	"الأنعام",
+	"الأعراف",
+	"الأنفال",
+	"التوبة",
+	"يونس",
+	"هود",
+	"يوسف",
+	"الرعد",
+	"ابراهيم",
+	"الحجر",
+	"النحل",
+	"الإسراء",
+	"الكهف",
+	"مريم",
+	"طه",
+	"الأنبياء",
+	"الحج",
+	"المؤمنون",
+	"النور",
+	"الفرقان",
+	"الشعراء",
+	"النمل",
+	"القصص",
+	"العنكبوت",
+	"الروم",
+	"لقمان",
+	"السجدة",
+	"الأحزاب",
+	"سبإ",
+	"فاطر",
+	"يس",
+	"الصافات",
+	"ص",
+	"الزمر",
+	"غافر",
+	"فصلت",
+	"الشورى",
+	"الزخرف",
+	"الدخان",
+	"الجاثية",
+	"الأحقاف",
+	"محمد",
+	"الفتح",
+	"الحجرات",
+	"ق",
+	"الذاريات",
+	"الطور",
+	"النجم",
+	"القمر",
+	"الرحمن",
+	"الواقعة",
+	"الحديد",
+	"المجادلة",
+	"الحشر",
+	"الممتحنة",
+	"الصف",
+	"الجمعة",
+	"المنافقون",
+	"التغابن",
+	"الطلاق",
+	"التحريم",
+	"الملك",
+	"القلم",
+	"الحاقة",
+	"المعارج",
+	"نوح",
+	"الجن",
+	"المزمل",
+	"المدثر",
+	"القيامة",
+	"الانسان",
+	"المرسلات",
+	"النبإ",
+	"النازعات",
+	"عبس",
+	"التكوير",
+	"الإنفطار",
+	"المطففين",
+	"الإنشقاق",
+	"البروج",
+	"الطارق",
+	"الأعلى",
+	"الغاشية",
+	"الفجر",
+	"البلد",
+	"الشمس",
+	"الليل",
+	"الضحى",
+	"الشرح",
+	"التين",
+	"العلق",
+	"القدر",
+	"البينة",
+	"الزلزلة",
+	"العاديات",
+	"القارعة",
+	"التكاثر",
+	"العصر",
+	"الهمزة",
+	"الفيل",
+	"قريش",
+	"الماعون",
+	"الكوثر",
+	"الكافرون",
+	"النصر",
+	"المسد",
+	"الإخلاص",
+	"الفلق",
+	"الناس",
+];
 
 const { CLIENT_ID } = process.env;
+
+const createVoiceConnection = async (
+	channelId: string,
+	guildId: string,
+	adapterCreator: DiscordGatewayAdapterCreator
+) => {
+	const newConnection = joinVoiceChannel({
+		channelId,
+		guildId,
+		adapterCreator,
+	});
+
+	newConnection.configureNetworking();
+
+	await entersState(newConnection, VoiceConnectionStatus.Ready, 5_000);
+
+	return newConnection;
+};
 
 const connect = async (interaction: ChatInputCommandInteraction) => {
 	await interaction.deferReply();
@@ -48,33 +161,16 @@ const connect = async (interaction: ChatInputCommandInteraction) => {
 	const guild = interaction.guild as Guild;
 
 	const { channel: requestChannel } = member.voice;
-	const existingConnection = getVoiceConnection(guild.id);
-	const state = guild.voiceStates.resolve(CLIENT_ID as unknown as VoiceState);
-	const connected = Boolean(existingConnection && state && state.channelId);
 
 	if (!requestChannel) {
 		await interaction.editReply(`You're not connected to a voice channel`);
 		return;
 	}
 
-	// TODO: continue, uncomment
-	// if (
-	// 	connected &&
-	// 	state.channelId === requestChannel.id &&
-	// 	existingConnection?.joinConfig?.channelId === requestChannel.id
-	// ) {
-	// 	playerManager.subscribe(existingConnection, interaction.guild!);
-	// 	await interaction.editReply(
-	// 		`I'm already connected to this channel. Refreshing playback just in case...`
-	// 	);
-	// 	return;
-	// }
-
 	const subcommand = interaction.options.getSubcommand();
 	const reciterValue = interaction.options.getString("reciter");
 	const moshafValue = interaction.options.getString("moshaf");
 
-	// TODO: handle loose user-input
 	if (subcommand === "recitation" && (!reciterValue || !moshafValue)) {
 		await interaction.editReply(`Invalid command options`);
 		return;
@@ -95,23 +191,12 @@ const connect = async (interaction: ChatInputCommandInteraction) => {
 		return;
 	}
 
-	if (existingConnection) {
-		existingConnection.disconnect();
-		existingConnection.destroy();
-	}
-
-	const newConnection = joinVoiceChannel({
-		channelId: requestChannel.id,
-		guildId: requestChannel.guild.id,
-		adapterCreator: requestChannel.guild
-			.voiceAdapterCreator as DiscordGatewayAdapterCreator,
-	});
-
-	newConnection.configureNetworking();
-
-	await entersState(newConnection, VoiceConnectionStatus.Ready, 5_000);
-
 	if (subcommand === "radio") {
+		const newConnection = await createVoiceConnection(
+			requestChannel.id,
+			guild.id,
+			guild!.voiceAdapterCreator
+		);
 		playerManager.subscribe("default", newConnection, guild);
 		connections.add(requestChannel.guild.id, requestChannel.id);
 		await interaction.editReply(
@@ -140,31 +225,34 @@ const connect = async (interaction: ChatInputCommandInteraction) => {
 		return;
 	}
 
-	playerManager.subscribe(
+	const newConnection = await createVoiceConnection(
+		requestChannel.id,
+		guild.id,
+		guild!.voiceAdapterCreator
+	);
+
+	const surah = await playerManager.subscribe(
 		{
-			moshafId: String(moshaf.id),
+			moshafId: moshaf.id,
 			reciter: recitation,
+			surah: 1,
 		},
 		newConnection,
 		guild
 	);
+
+	const surahName = surahs[surah! - 1];
+
 	await interaction.editReply(
-		`Playing ${recitation.name}-${moshaf.name} in ${requestChannel.name}`
+		`▶ ${surahName}\n👳‍♂️ ${recitation.name}-${moshaf.name}\n📍 ${requestChannel.name}`
 	);
 };
 
 const selectReciter = async (interaction: AutocompleteInteraction) => {
 	const recitations = await loadRecitations();
-
-	console.log(recitations);
-	const defaultOption = {
-		name: "إذاعة القرآن الكريم من القاهرة",
-		id: "default",
-		language: "ar",
-	};
 	const focusedOption = interaction.options.getFocused(true);
 
-	const editionsAsOptions = [defaultOption, ...recitations]
+	const editionsAsOptions = recitations
 		.filter((edition) =>
 			edition.name.toLowerCase().includes(focusedOption.value.toLowerCase())
 		)
@@ -174,22 +262,18 @@ const selectReciter = async (interaction: AutocompleteInteraction) => {
 			value: String(edition.id),
 		}));
 
-	// console.log(editionsAsOptions);
-
 	await interaction.respond(editionsAsOptions);
 };
 
 const selectMoshaf = async (interaction: AutocompleteInteraction) => {
 	const recitations = await loadRecitations();
 	const selectedRecitation = interaction.options.get("reciter");
+	const selectedRecitationId = Number(selectedRecitation?.value);
 
-	console.log(selectedRecitation);
-	if (!selectedRecitation) {
+	if (!selectedRecitation || Number.isNaN(selectedRecitationId)) {
 		await interaction.respond([]);
 		return;
 	}
-
-	const focusedOption = interaction.options.getFocused(true);
 
 	const selectedRecitationObject = recitations.find(
 		(recitation) => String(recitation.id) === String(selectedRecitation.value)
@@ -204,8 +288,6 @@ const selectMoshaf = async (interaction: AutocompleteInteraction) => {
 		name: moshaf.name,
 		value: String(moshaf.id),
 	}));
-
-	console.log(moshafOptions);
 
 	await interaction.respond(moshafOptions);
 };

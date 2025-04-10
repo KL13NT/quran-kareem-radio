@@ -1,22 +1,21 @@
-import { type CommandInteraction, type Interaction } from "discord.js";
+import {
+	type AutocompleteInteraction,
+	type ChatInputCommandInteraction,
+	type CommandInteraction,
+} from "discord.js";
 import connect from "~/commands/connect";
 import help from "~/commands/help";
 import leave from "~/commands/leave";
-import stream from "~/commands/stream";
 import type {
 	AutocompleteCommandOption,
 	CommandOption,
 	CommandType,
 } from "~/types";
-import { logger } from "~/utils/logger";
-
-const log = logger.create("interaction-create");
 
 const commands: Record<string, CommandType> = {
 	connect,
 	leave,
 	help,
-	stream,
 };
 
 type CommandKey = keyof typeof commands;
@@ -25,7 +24,9 @@ const isAutocompleteOption = (
 	option: CommandOption
 ): option is AutocompleteCommandOption => option.autocomplete;
 
-const onInteractionCreate = async (interaction: Interaction) => {
+const onInteractionCreate = async (
+	interaction: ChatInputCommandInteraction | AutocompleteInteraction
+) => {
 	if (
 		(!interaction.isAutocomplete() && !interaction.isCommand()) ||
 		!interaction.member ||
@@ -68,7 +69,6 @@ const onInteractionCreate = async (interaction: Interaction) => {
 			await command.run(interaction);
 		}
 	} catch (error) {
-		log(error);
 		console.log(error);
 	}
 };

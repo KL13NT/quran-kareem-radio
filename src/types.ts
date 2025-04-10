@@ -80,7 +80,7 @@ export type DiscordIdentifier = string;
 // 	| (PlaybackRequest & { surah: number })
 // 	| "default";
 
-export interface Edition {
+export interface Response {
 	reciters: RecitationEdition[];
 }
 
@@ -101,12 +101,13 @@ export interface Moshaf {
 	surah_list: string;
 }
 
-export type PlaybackRequest =
-	| {
-			moshafId: Identifier;
-			reciter: RecitationEdition;
-	  }
-	| "default";
+export type SurahPlaybackRequest = {
+	moshafId: number;
+	reciter: RecitationEdition;
+	surah: number;
+};
+
+export type PlaybackRequest = SurahPlaybackRequest | "default";
 
 export type URLCreationRequest =
 	| (PlaybackRequest & { surah: number })
