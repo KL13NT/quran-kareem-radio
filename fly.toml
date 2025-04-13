@@ -27,7 +27,7 @@ primary_region = "cdg"
 	ANALYTICS_CHANNEL_ID=1198233941677703198
 	DEV_SERVER_ID=960922615776690186
 	PERMISSIONS=2184185856
-	STREAM="https://3vh.liveradiu.com:8000/128kp.mp3"
+	STREAM="https://n0b.radiojar.com/8s5u5tpdtwzuv"
 
 [mounts]
   source = "quran"
