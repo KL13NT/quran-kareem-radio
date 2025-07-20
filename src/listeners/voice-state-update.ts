@@ -1,7 +1,7 @@
 import { getVoiceConnection } from "@discordjs/voice";
 import { VoiceState, type VoiceChannel } from "discord.js";
-import { connections } from "~/controllers/connections";
 import { playerManager } from "~/controllers/player-manager";
+import { subscriptionService } from "~/services/RecitationService";
 
 const { CLIENT_ID } = process.env;
 
@@ -11,8 +11,17 @@ const onVoiceStateUpdate = async (
 ) => {
 	try {
 		const guild = newState.guild ?? oldState.guild;
-		const connectedChannelId = connections.get(guild.id);
-		const connectedChannel = connectedChannelId
+		const voiceConnection = getVoiceConnection(guild.id);
+
+		if (!voiceConnection) return;
+
+		const connectedChannelId = (
+			await subscriptionService.getGuildSubscription(guild.id)
+		)?.channel_id;
+
+		if (!connectedChannelId) return;
+
+		const botChannel = connectedChannelId
 			? ((await guild.channels.fetch(connectedChannelId)) as VoiceChannel)
 			: null;
 
@@ -24,25 +33,26 @@ const onVoiceStateUpdate = async (
 			newState.channel &&
 			newState.channel.id !== oldState.channel.id;
 
+		const sameUserBotOldChannel = connectedChannelId === oldState.channel?.id;
+		const sameUserBotNewChannel = connectedChannelId === newState.channel?.id;
+
 		// Using oldState first because users may have moved to a different channel,
 		// which means there are actually two affected channels, the old (which the
 		// bot is connected to) and the new one. We're only interested about the
 		// channel the bot is connected to.
 		const affectedChannelConnected =
-			(userLeft && oldState.channel?.id === connectedChannelId) ||
-			(userJoined && newState.channel?.id === connectedChannelId) ||
-			(userMoved && connectedChannelId === oldState.channel?.id) ||
-			(userMoved && connectedChannelId === newState.channel?.id);
+			(userLeft && sameUserBotOldChannel) ||
+			(userJoined && sameUserBotNewChannel) ||
+			(userMoved && sameUserBotOldChannel) ||
+			(userMoved && sameUserBotNewChannel);
 
-		// TODO: fix conditions on user leave interpreted as user join
-
-		if (!isBot && connectedChannel && affectedChannelConnected) {
-			if (connectedChannel.members.size <= 1) {
+		if (!isBot && botChannel && affectedChannelConnected) {
+			if (botChannel.members.size <= 1 && userLeft) {
 				console.log(`Unsubscribing ${guild.name} due to empty channel`);
 				playerManager.unsubscribe(guild);
-			} else {
+			} else if (botChannel.members.size === 2 && (userJoined || userMoved)) {
 				console.log(`Subscribing ${guild.name} due to user joining channel`);
-				playerManager.refresh(guild, getVoiceConnection(guild.id)!);
+				await playerManager.refresh(guild, getVoiceConnection(guild.id)!);
 			}
 
 			return;
@@ -56,7 +66,7 @@ const onVoiceStateUpdate = async (
 			getVoiceConnection(oldState.guild.id)?.destroy();
 
 			playerManager.unsubscribe(guild);
-			connections.del(guild.id);
+			await subscriptionService.unsubscribeGuild(guild.id);
 		} else if (isBot && userMoved) {
 			console.log(
 				`Bot has been moved from ${oldState.guild.name} ${oldState.channel.name} to ${newState.channel.name}`
@@ -66,8 +76,9 @@ const onVoiceStateUpdate = async (
 				newState.channel.id
 			)) as VoiceChannel;
 
-			connections.del(guild.id);
-			connections.add(newState.guild.id, newState.channel.id);
+			await subscriptionService.updateGuildSubscription(guild.id, {
+				channel_id: newState.channel.id,
+			});
 
 			if (targetChannel.members.size <= 1) {
 				console.log(`Unsubscribing ${guild.name} due to empty channel`);
@@ -76,7 +87,7 @@ const onVoiceStateUpdate = async (
 				console.log(
 					`Subscribing ${guild.name}:${targetChannel.name} due to user joining channel`
 				);
-				playerManager.refresh(guild, getVoiceConnection(guild.id)!);
+				await playerManager.refresh(guild, getVoiceConnection(guild.id)!);
 			}
 		}
 	} catch (error) {

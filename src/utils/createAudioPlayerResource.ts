@@ -1,21 +1,16 @@
 import { createAudioResource } from "@discordjs/voice";
 import prism from "prism-media";
 import { Readable } from "stream";
-import type { PlaybackRequest, URLCreationRequest } from "~/types";
+import type { PlaybackRequest } from "~/types";
 
-const { STREAM } = process.env;
-
-export const createResourceURL = (data: URLCreationRequest) => {
-	if (data === "default") {
-		return `${STREAM}?${Date.now()}`;
+export const createResourceURL = (data: PlaybackRequest) => {
+	if (data.id === "default") {
+		return `${data.server}?${Date.now()}`;
 	}
 
-	const { moshafId, reciter, surah } = data;
-	const moshaf = reciter.moshaf.find(
-		(moshaf) => moshaf.id === Number(moshafId)
-	)!;
+	const { surah, server } = data;
 
-	return `${moshaf?.server}/${surah.toString().padStart(3, "0")}.mp3`;
+	return `${server}/${surah!.toString().padStart(3, "0")}.mp3`;
 };
 
 async function createFetchReadStream(url: string, options = {}) {
@@ -93,16 +88,13 @@ const createFFmpegStream = async (url: string, seek = 0) => {
 	return opus;
 };
 
-export const createAudioPlayerResource = async (
-	data: PlaybackRequest,
-	seek = 0
-) => {
-	const url = createResourceURL(data === "default" ? "default" : data);
+export const createAudioPlayerResource = async (data: PlaybackRequest) => {
+	const url = createResourceURL(data);
 
-	if (data === "default") {
+	if (data.id === "default") {
 		return createAudioResource(url);
 	}
 
-	const stream = await createFFmpegStream(url, seek);
+	const stream = await createFFmpegStream(url);
 	return createAudioResource(stream);
 };

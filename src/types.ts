@@ -76,12 +76,22 @@ export type Identifier = string;
  */
 export type DiscordIdentifier = string;
 
-// export type URLCreationRequest =
-// 	| (PlaybackRequest & { surah: number })
-// 	| "default";
+export interface Moshaf {
+	id: number;
+	name: string;
+	server: string;
+	surah_total: number;
+	moshaf_type: number;
+	surah_list: string;
+}
 
-export interface Response {
-	reciters: RecitationEdition[];
+export interface MappedMoshaf {
+	id: number;
+	name: string;
+	server: string;
+	surah_total: number;
+	moshaf_type: number;
+	surah_list: number[];
 }
 
 export interface RecitationEdition {
@@ -92,13 +102,18 @@ export interface RecitationEdition {
 	moshaf: Moshaf[];
 }
 
-export interface Moshaf {
-	id: number;
-	name: string;
-	server: string;
-	surah_total: number;
-	moshaf_type: number;
-	surah_list: string;
+export type MappedRecitationEdition =
+	| { id: "default"; name: string; server: string }
+	// eslint-disable-next-line @typescript-eslint/ban-types
+	| {
+			id: `${number}-${number}`;
+			name: string;
+			surahs: number[];
+			server: string;
+	  };
+
+export interface Response {
+	reciters: RecitationEdition[];
 }
 
 export type SurahPlaybackRequest = {
@@ -107,8 +122,12 @@ export type SurahPlaybackRequest = {
 	surah: number;
 };
 
-export type PlaybackRequest = SurahPlaybackRequest | "default";
+export type StoredRecitationRequest = {
+	id: Identifier;
+	guild_id: DiscordIdentifier;
+	channel_id: DiscordIdentifier;
+	recitation_id: Identifier;
+	surah?: number;
+};
 
-export type URLCreationRequest =
-	| (PlaybackRequest & { surah: number })
-	| "default";
+export type PlaybackRequest = MappedRecitationEdition & { surah: number };

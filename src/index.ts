@@ -6,7 +6,6 @@ import { onInteractionCreateEvent } from "~/listeners/interaction-create";
 import { onVoiceStateUpdateEvent } from "~/listeners/voice-state-update";
 
 import { client } from "./controllers/client";
-import { connections } from "./controllers/connections";
 import { playerManager } from "./controllers/player-manager";
 import { loadRecitations } from "./utils/loadRecitations";
 
@@ -21,7 +20,6 @@ if (DEBUG === "true") {
 client.once("ready", async () => {
 	console.log("Ready!");
 
-	await connections.init();
 	await loadRecitations();
 
 	if (client.user) {

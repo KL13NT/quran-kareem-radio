@@ -3,9 +3,8 @@ import {
 	type CommandInteraction,
 	type Guild,
 	type VoiceState,
-	ApplicationCommandType,
 } from "discord.js";
-import { connections } from "~/controllers/connections";
+import { subscriptionService } from "~/services/RecitationService";
 import type { CommandType } from "~/types";
 
 const { CLIENT_ID } = process.env;
@@ -25,13 +24,12 @@ const leave = async (interaction: CommandInteraction) => {
 		existingConnection.disconnect();
 	}
 
-	connections.del(guild.id);
+	await subscriptionService.unsubscribeGuild(guild.id);
 	await interaction.reply(`Disconnected from voice channel`);
 };
 
 export default {
 	name: "leave",
 	description: "Disconnects the bot from a voice channel when connected",
-	type: ApplicationCommandType.ChatInput,
 	run: leave,
 } as CommandType;

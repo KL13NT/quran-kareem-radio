@@ -26,13 +26,6 @@ const commands = [
 						.setRequired(true)
 						.setAutocomplete(true)
 				)
-				.addStringOption((option) =>
-					option
-						.setName("moshaf")
-						.setDescription("The moshaf edition (rewaya) to read")
-						.setRequired(true)
-						.setAutocomplete(true)
-				)
 		)
 		.setContexts([InteractionContextType.Guild]),
 	new SlashCommandBuilder()

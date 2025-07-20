@@ -9,7 +9,8 @@ import {
 	type PlayerSubscription,
 } from "@discordjs/voice";
 import { createAudioPlayerResource } from "~/utils/createAudioPlayerResource";
-import type { Moshaf, PlaybackRequest, SurahPlaybackRequest } from "~/types";
+import type { MappedRecitationEdition, PlaybackRequest } from "~/types";
+import console from "console";
 
 export declare interface Player {
 	// eslint-disable-next-line no-unused-vars
@@ -17,42 +18,35 @@ export declare interface Player {
 }
 
 const removePlayerListeners = (player: AudioPlayer) => {
-	console.log("Removing player listeners");
+	console.log("[PLAYER]", "Removing player listeners");
 	player.removeAllListeners();
 };
 
-type PlayerState = {
-	request: PlaybackRequest;
-	started: Date;
-};
+type PlayerState = PlaybackRequest;
 
-const determinePlayableSurah = (moshaf: Moshaf, currentSurah?: number) => {
-	const { surah_list } = moshaf;
-
-	const availableSurahs = JSON.parse(`[${surah_list}]`) as number[];
-
-	if (availableSurahs.length === 0) {
+const determinePlayableSurah = (surahs: number[], currentSurah: number) => {
+	if (surahs.length === 0) {
 		throw new Error("Moshaf has no available surahs");
 	}
 
 	const nextAvailableSurah = currentSurah
-		? availableSurahs[availableSurahs.indexOf(currentSurah) + 1]
-		: availableSurahs[0];
+		? surahs[surahs.indexOf(currentSurah) + 1]
+		: surahs[0];
 
 	if (!nextAvailableSurah) {
-		return -1;
+		return 1;
 	}
 
-	return Number(nextAvailableSurah);
+	return nextAvailableSurah;
 };
 
 export class Player extends EventEmitter {
 	player: AudioPlayer;
 	subscriptions = new Map<string, PlayerSubscription>();
-	state!: PlayerState;
+	state!: PlaybackRequest;
 	resource!: AudioResource;
 
-	constructor(request: PlaybackRequest) {
+	constructor(request: MappedRecitationEdition) {
 		super();
 
 		const player = createAudioPlayer({
@@ -62,25 +56,12 @@ export class Player extends EventEmitter {
 			},
 		});
 
-		if (request === "default") {
-			this.state = {
-				request: "default",
-				started: new Date(),
-			};
-		} else {
-			const moshaf = request.reciter.moshaf.find(
-				(moshaf) => moshaf.id === Number(request.moshafId)
-			);
+		console.log({ request });
 
-			this.state = {
-				request: {
-					...request,
-					surah: determinePlayableSurah(moshaf!),
-				},
-				started: new Date(),
-			};
-		}
-
+		this.state = {
+			...request,
+			surah: request.id === "default" ? 1 : request.surahs[0],
+		};
 		this.player = player;
 	}
 
@@ -93,7 +74,7 @@ export class Player extends EventEmitter {
 	};
 
 	init = async () => {
-		this.resource = await createAudioPlayerResource(this.state.request);
+		this.resource = await createAudioPlayerResource(this.state);
 
 		this.player.once("playing", () => {
 			this.emit("playing");
@@ -102,9 +83,9 @@ export class Player extends EventEmitter {
 
 		this.player.play(this.resource);
 
-		if (this.state.request !== "default") {
+		if (this.state.id !== "default") {
 			this.resource?.playStream.on("error", (error) => {
-				console.log("Stream errored", error);
+				console.log("[PLAYER]", "Stream errored", error);
 				removePlayerListeners(this.player);
 				this.changeSurah();
 			});
@@ -113,20 +94,20 @@ export class Player extends EventEmitter {
 
 	refresh = async () => {
 		this.player.stop();
-		this.resource = await createAudioPlayerResource(this.state.request);
+		this.resource = await createAudioPlayerResource(this.state);
 		this.player.play(this.resource);
 	};
 
 	attachPlayerListeners = (player: AudioPlayer) => {
-		console.log("Attaching player listeners");
+		console.log("[PLAYER]", "Attaching player listeners");
 		player.on("error", async (error) => {
-			console.log(`Player error`, error);
+			console.log("[PLAYER]", `Player error`, error);
 			removePlayerListeners(player);
 			this.changeSurah();
 		});
 
 		player.on("debug", (info) => {
-			console.log(info);
+			console.log("[PLAYER]", info);
 
 			const toRegex = /to.+"status":"(?<status>\w+)"/gm;
 			const matched = toRegex.exec(info);
@@ -138,9 +119,9 @@ export class Player extends EventEmitter {
 			const { status } = matched.groups!;
 			const isStopped = status === "idle" || status === "autopaused";
 
-			const isSurah = this.state.request !== "default";
+			const isSurah = this.state.id !== "default";
 
-			console.log(status, isStopped, isSurah);
+			console.log("[PLAYER]", status, isStopped, isSurah);
 
 			if (isStopped && isSurah) {
 				// TODO: Should seek here instead or go to the next one
@@ -161,35 +142,25 @@ export class Player extends EventEmitter {
 
 	changeSurah = async () => {
 		try {
-			if (this.state.request === "default") {
+			if (this.state.id === "default") {
 				return;
 			}
 
-			const { reciter, moshafId, surah } = this.state.request;
-			const moshaf = reciter.moshaf.find((moshaf) => moshaf.id === moshafId);
+			const { surah, surahs } = this.state;
 
-			const nextSurah = determinePlayableSurah(moshaf!, surah);
-
-			if (nextSurah === -1) {
-				this.player.play(await createAudioPlayerResource("default"));
-				return;
-			}
-
+			const nextSurah = determinePlayableSurah(surahs, surah!);
 			const updatedState: PlayerState = {
-				request: {
-					...this.state.request,
-					surah: nextSurah,
-				},
-				started: new Date(),
+				...this.state,
+				surah: nextSurah,
 			};
 
-			const resource = await createAudioPlayerResource(updatedState.request);
+			const resource = await createAudioPlayerResource(updatedState);
 			this.state = updatedState;
 			this.resource = resource;
 			this.player.play(resource);
 			this.attachPlayerListeners(this.player);
 		} catch (error) {
-			console.log(error);
+			console.log("[PLAYER]", error);
 		}
 	};
 
@@ -197,24 +168,24 @@ export class Player extends EventEmitter {
 		try {
 			if (this.subscriptions.has(guild.id)) {
 				console.log(
+					"[PLAYER]",
 					`Dismissing subscription request for ${guild.name} since it already exists.`
 				);
 				return;
 			}
 
-			console.log(`Subscribing ${guild.name}`);
+			console.log("[PLAYER]", `Subscribing ${guild.name}`);
 			const subscription = connection.subscribe(this.player);
 
 			if (subscription) {
 				this.subscriptions.set(guild.id, subscription);
 			}
 		} catch (error) {
-			console.log("Subscription failed:", error);
+			console.log("[PLAYER]", "Subscription failed:", error);
 		}
 	};
 
 	unsubscribe = (guild: Guild) => {
-		console.log(`Unsubscribing ${guild.name}`);
 		const subscription = this.subscriptions.get(guild.id);
 		if (!subscription) return;
 
@@ -228,6 +199,6 @@ export class Player extends EventEmitter {
 	};
 
 	getCurrentSurah = () => {
-		return (this.state.request as SurahPlaybackRequest)?.surah;
+		return this.state.surah;
 	};
 }

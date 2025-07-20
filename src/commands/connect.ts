@@ -12,129 +12,9 @@ import {
 	PermissionFlagsBits,
 } from "discord.js";
 import { client } from "~/controllers/client";
-import { connections } from "~/controllers/connections";
 import { playerManager } from "~/controllers/player-manager";
 import type { CommandType } from "~/types";
-import { loadRecitations } from "~/utils/loadRecitations";
-
-const surahs = [
-	"الفاتحة",
-	"البقرة",
-	"آل عمران",
-	"النساء",
-	"المائدة",
-	"الأنعام",
-	"الأعراف",
-	"الأنفال",
-	"التوبة",
-	"يونس",
-	"هود",
-	"يوسف",
-	"الرعد",
-	"ابراهيم",
-	"الحجر",
-	"النحل",
-	"الإسراء",
-	"الكهف",
-	"مريم",
-	"طه",
-	"الأنبياء",
-	"الحج",
-	"المؤمنون",
-	"النور",
-	"الفرقان",
-	"الشعراء",
-	"النمل",
-	"القصص",
-	"العنكبوت",
-	"الروم",
-	"لقمان",
-	"السجدة",
-	"الأحزاب",
-	"سبإ",
-	"فاطر",
-	"يس",
-	"الصافات",
-	"ص",
-	"الزمر",
-	"غافر",
-	"فصلت",
-	"الشورى",
-	"الزخرف",
-	"الدخان",
-	"الجاثية",
-	"الأحقاف",
-	"محمد",
-	"الفتح",
-	"الحجرات",
-	"ق",
-	"الذاريات",
-	"الطور",
-	"النجم",
-	"القمر",
-	"الرحمن",
-	"الواقعة",
-	"الحديد",
-	"المجادلة",
-	"الحشر",
-	"الممتحنة",
-	"الصف",
-	"الجمعة",
-	"المنافقون",
-	"التغابن",
-	"الطلاق",
-	"التحريم",
-	"الملك",
-	"القلم",
-	"الحاقة",
-	"المعارج",
-	"نوح",
-	"الجن",
-	"المزمل",
-	"المدثر",
-	"القيامة",
-	"الانسان",
-	"المرسلات",
-	"النبإ",
-	"النازعات",
-	"عبس",
-	"التكوير",
-	"الإنفطار",
-	"المطففين",
-	"الإنشقاق",
-	"البروج",
-	"الطارق",
-	"الأعلى",
-	"الغاشية",
-	"الفجر",
-	"البلد",
-	"الشمس",
-	"الليل",
-	"الضحى",
-	"الشرح",
-	"التين",
-	"العلق",
-	"القدر",
-	"البينة",
-	"الزلزلة",
-	"العاديات",
-	"القارعة",
-	"التكاثر",
-	"العصر",
-	"الهمزة",
-	"الفيل",
-	"قريش",
-	"الماعون",
-	"الكوثر",
-	"الكافرون",
-	"النصر",
-	"المسد",
-	"الإخلاص",
-	"الفلق",
-	"الناس",
-];
-
-const { CLIENT_ID } = process.env;
+import { loadRecitations, translateSurahNumber } from "~/utils/loadRecitations";
 
 const createVoiceConnection = async (
 	channelId: string,
@@ -169,9 +49,8 @@ const connect = async (interaction: ChatInputCommandInteraction) => {
 
 	const subcommand = interaction.options.getSubcommand();
 	const reciterValue = interaction.options.getString("reciter");
-	const moshafValue = interaction.options.getString("moshaf");
 
-	if (subcommand === "recitation" && (!reciterValue || !moshafValue)) {
+	if (subcommand === "recitation" && !reciterValue) {
 		await interaction.editReply(`Invalid command options`);
 		return;
 	}
@@ -191,37 +70,32 @@ const connect = async (interaction: ChatInputCommandInteraction) => {
 		return;
 	}
 
+	const recitations = await loadRecitations();
+
 	if (subcommand === "radio") {
 		const newConnection = await createVoiceConnection(
 			requestChannel.id,
 			guild.id,
 			guild!.voiceAdapterCreator
 		);
-		playerManager.subscribe("default", newConnection, guild);
-		connections.add(requestChannel.guild.id, requestChannel.id);
+
+		playerManager.subscribe(
+			recitations.find((recitation) => recitation.id === "default")!,
+			newConnection,
+			guild,
+			requestChannel.id
+		);
+
 		await interaction.editReply(
 			`Playing إذاعة القرآن الكريم من القاهرة in ${requestChannel.name}`
 		);
 		return;
 	}
 
-	const recitations = await loadRecitations();
-
-	const recitation = recitations.find(
-		(edition) => edition.id === Number(reciterValue)
-	);
+	const recitation = recitations.find((edition) => edition.id === reciterValue);
 
 	if (!recitation) {
 		await interaction.editReply(`Invalid recitation selected`);
-		return;
-	}
-
-	const moshaf = recitation.moshaf.find(
-		(moshaf) => moshaf.id === Number(moshafValue)
-	);
-
-	if (!moshaf) {
-		await interaction.editReply(`Invalid moshaf selected`);
 		return;
 	}
 
@@ -232,19 +106,16 @@ const connect = async (interaction: ChatInputCommandInteraction) => {
 	);
 
 	const surah = await playerManager.subscribe(
-		{
-			moshafId: moshaf.id,
-			reciter: recitation,
-			surah: 1,
-		},
+		recitation,
 		newConnection,
-		guild
+		guild,
+		requestChannel.id
 	);
 
-	const surahName = surahs[surah! - 1];
+	const surahName = translateSurahNumber(surah!);
 
 	await interaction.editReply(
-		`▶ ${surahName}\n👳‍♂️ ${recitation.name}-${moshaf.name}\n📍 ${requestChannel.name}`
+		`▶ ${surahName}\n👳‍♂️ ${recitation.name}\n📍 ${requestChannel.name}`
 	);
 };
 
@@ -263,33 +134,6 @@ const selectReciter = async (interaction: AutocompleteInteraction) => {
 		}));
 
 	await interaction.respond(editionsAsOptions);
-};
-
-const selectMoshaf = async (interaction: AutocompleteInteraction) => {
-	const recitations = await loadRecitations();
-	const selectedRecitation = interaction.options.get("reciter");
-	const selectedRecitationId = Number(selectedRecitation?.value);
-
-	if (!selectedRecitation || Number.isNaN(selectedRecitationId)) {
-		await interaction.respond([]);
-		return;
-	}
-
-	const selectedRecitationObject = recitations.find(
-		(recitation) => String(recitation.id) === String(selectedRecitation.value)
-	);
-
-	if (!selectedRecitationObject) {
-		await interaction.respond([]);
-		return;
-	}
-
-	const moshafOptions = selectedRecitationObject.moshaf.map((moshaf) => ({
-		name: moshaf.name,
-		value: String(moshaf.id),
-	}));
-
-	await interaction.respond(moshafOptions);
 };
 
 export default {
@@ -312,13 +156,6 @@ export default {
 					autocomplete: true,
 					required: true,
 					method: selectReciter,
-				},
-				{
-					name: "moshaf",
-					description: "Select a moshaf edition",
-					autocomplete: true,
-					required: true,
-					method: selectMoshaf,
 				},
 			],
 		},
