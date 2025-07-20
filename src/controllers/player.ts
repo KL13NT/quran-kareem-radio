@@ -77,7 +77,6 @@ export class Player extends EventEmitter {
 		this.resource = await createAudioPlayerResource(this.state);
 
 		this.player.once("playing", () => {
-			this.emit("playing");
 			this.attachPlayerListeners(this.player);
 		});
 
@@ -93,13 +92,21 @@ export class Player extends EventEmitter {
 	};
 
 	refresh = async () => {
+		removePlayerListeners(this.player);
 		this.player.stop();
 		this.resource = await createAudioPlayerResource(this.state);
+		this.attachPlayerListeners(this.player);
 		this.player.play(this.resource);
 	};
 
 	attachPlayerListeners = (player: AudioPlayer) => {
+		if (player.listeners("error").length > 0) {
+			console.log("[PLAYER]", "Listeners already attached", console.trace());
+			return;
+		}
+
 		console.log("[PLAYER]", "Attaching player listeners");
+
 		player.on("error", async (error) => {
 			console.log("[PLAYER]", `Player error`, error);
 			removePlayerListeners(player);
@@ -121,27 +128,25 @@ export class Player extends EventEmitter {
 
 			const isSurah = this.state.id !== "default";
 
-			console.log("[PLAYER]", status, isStopped, isSurah);
+			console.log("[PLAYER]", {
+				status,
+				isStopped,
+				isSurah,
+			});
 
 			if (isStopped && isSurah) {
 				// TODO: Should seek here instead or go to the next one
-				removePlayerListeners(player);
-				player.once("playing", () => {
-					this.attachPlayerListeners(player);
-				});
 				this.changeSurah();
 			} else if (isStopped && !isSurah) {
-				removePlayerListeners(player);
 				this.refresh();
-				player.once("playing", () => {
-					this.attachPlayerListeners(player);
-				});
 			}
 		});
 	};
 
 	changeSurah = async () => {
 		try {
+			removePlayerListeners(this.player);
+
 			if (this.state.id === "default") {
 				return;
 			}

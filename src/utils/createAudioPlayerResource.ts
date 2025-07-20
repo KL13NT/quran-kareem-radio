@@ -2,6 +2,9 @@ import { createAudioResource } from "@discordjs/voice";
 import prism from "prism-media";
 import { Readable } from "stream";
 import type { PlaybackRequest } from "~/types";
+import { Throttle } from "stream-throttle";
+import https from "https";
+import http from "http";
 
 export const createResourceURL = (data: PlaybackRequest) => {
 	if (data.id === "default") {
@@ -13,52 +16,58 @@ export const createResourceURL = (data: PlaybackRequest) => {
 	return `${server}/${surah!.toString().padStart(3, "0")}.mp3`;
 };
 
-async function createFetchReadStream(url: string, options = {}) {
-	const response = await fetch(url, options);
-	console.log(url);
+interface ThrottleOptions {
+	rate?: number; // bytes per second
+	chunkSize?: number; // chunk size in bytes
+}
 
-	if (!response.ok) {
-		throw new Error(`HTTP error! status: ${response.status}`);
-	}
+// Simple HTTP stream creation
+async function createHttpStream(url: string): Promise<Readable> {
+	return new Promise<Readable>((resolve, reject) => {
+		const parsedUrl = new URL(url);
+		const client = parsedUrl.protocol === "https:" ? https : http;
 
-	// Create a custom readable stream
-	const readStream = new Readable({
-		// eslint-disable-next-line @typescript-eslint/no-empty-function
-		read() {}, // No-op, we'll push data manually
-	});
+		const request = client.get(url, (response) => {
+			console.log(url);
 
-	// Check if the response body is a ReadableStream
-	if (response.body && response.body.getReader) {
-		const reader = response.body.getReader();
-
-		// Read chunks and push to stream
-		const processChunk = async () => {
-			try {
-				const { done, value } = await reader.read();
-
-				if (done) {
-					readStream.push(null); // End of stream
-					return;
-				}
-
-				readStream.push(value);
-				processChunk(); // Continue reading
-			} catch (error) {
-				readStream.destroy();
-				console.log(error);
+			if (response.statusCode !== 200) {
+				reject(new Error(`HTTP error! status: ${response.statusCode}`));
+				return;
 			}
-		};
 
-		processChunk();
-	} else {
-		throw new Error("Response body is not a readable stream");
-	}
+			// Response is already a readable stream
+			resolve(response);
+		});
 
-	return readStream;
+		request.on("error", reject);
+		request.setTimeout(30000, () => {
+			request.destroy();
+			reject(new Error("Request timeout"));
+		});
+	});
+}
+
+// Create throttled HTTP stream
+async function createThrottledHttpStream(
+	url: string,
+	options: ThrottleOptions = {}
+): Promise<Readable> {
+	const {
+		rate = 512 * 1024, // Default 512 KB/s
+		chunkSize = 1024, // Default 1KB chunks
+	} = options;
+
+	const httpStream = await createHttpStream(url);
+
+	// Create throttle stream
+	const throttle = new Throttle({ rate, chunksize: chunkSize });
+
+	// Pipe HTTP stream through throttle
+	return httpStream.pipe(throttle);
 }
 
 const createFFmpegStream = async (url: string, seek = 0) => {
-	const stream = await createFetchReadStream(url);
+	const stream = await createThrottledHttpStream(url);
 	const seekPosition = String(seek);
 
 	const transcoder = new prism.FFmpeg({

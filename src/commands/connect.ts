@@ -1,5 +1,6 @@
 import {
 	entersState,
+	getVoiceConnection,
 	joinVoiceChannel,
 	VoiceConnectionStatus,
 	type DiscordGatewayAdapterCreator,
@@ -49,6 +50,7 @@ const connect = async (interaction: ChatInputCommandInteraction) => {
 
 	const subcommand = interaction.options.getSubcommand();
 	const reciterValue = interaction.options.getString("reciter");
+	const voiceConnection = getVoiceConnection(guild.id);
 
 	if (subcommand === "recitation" && !reciterValue) {
 		await interaction.editReply(`Invalid command options`);
@@ -73,11 +75,13 @@ const connect = async (interaction: ChatInputCommandInteraction) => {
 	const recitations = await loadRecitations();
 
 	if (subcommand === "radio") {
-		const newConnection = await createVoiceConnection(
-			requestChannel.id,
-			guild.id,
-			guild!.voiceAdapterCreator
-		);
+		const newConnection =
+			voiceConnection ??
+			(await createVoiceConnection(
+				requestChannel.id,
+				guild.id,
+				guild!.voiceAdapterCreator
+			));
 
 		playerManager.subscribe(
 			recitations.find((recitation) => recitation.id === "default")!,

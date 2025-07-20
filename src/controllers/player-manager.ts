@@ -42,6 +42,7 @@ export class PlayerManager extends EventEmitter {
 			guild.id
 		);
 
+		const voiceConnection = getVoiceConnection(guild.id);
 		const sameRecitation = subscription
 			? subscription.recitation_id === request.id
 			: false;
@@ -49,13 +50,14 @@ export class PlayerManager extends EventEmitter {
 		const player = await this.retrieveOrCreatePlayer(request);
 		player.subscribe(connection, guild);
 
-		if (sameRecitation) {
-			return player.state.surah;
-		} else {
-			await subscriptionService.updateGuildSubscription(guild.id, {
-				channel_id: channelId,
-				recitation_id: request.id,
-			});
+		console.log({ sameRecitation, request });
+
+		if (sameRecitation && voiceConnection) {
+			return;
+		} else if (subscription) {
+			await this.unsubscribe(guild);
+			player.subscribe(connection, guild);
+			await subscriptionService.subscribeGuild(guild.id, request.id, channelId);
 		}
 
 		if (player.state.id !== "default") {
@@ -130,10 +132,14 @@ export class PlayerManager extends EventEmitter {
 			player.stop();
 			this.players.delete(data.recitation_id);
 		}
+
+		await subscriptionService.unsubscribeGuild(guild.id);
 	}
 
 	reconnect = async () => {
 		try {
+			if (process.env.MODE === "DEVELOPMENT") return;
+
 			console.log("Reconnecting players to guilds");
 
 			const subscriptions = await subscriptionService.getAllRecitations();
