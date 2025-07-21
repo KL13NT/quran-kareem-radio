@@ -6,12 +6,13 @@ import {
 	type DiscordGatewayAdapterCreator,
 	type VoiceConnection,
 } from "@discordjs/voice";
-import type { Guild } from "discord.js";
+import { type Guild } from "discord.js";
 import type {
 	DiscordIdentifier,
 	Identifier,
 	MappedRecitationEdition,
 	PlaybackRequest,
+	RecitationIdentifier,
 } from "~/types";
 import { EventEmitter } from "stream";
 import { Player } from "./player";
@@ -19,6 +20,7 @@ import console, { log } from "node:console";
 import { client } from "./client";
 import { loadRecitations } from "~/utils/loadRecitations";
 import { subscriptionService } from "~/services/RecitationService";
+import { canConnect } from "~/utils/can-connect";
 
 export declare interface PlayerManager {
 	// eslint-disable-next-line no-unused-vars
@@ -42,21 +44,44 @@ export class PlayerManager extends EventEmitter {
 			guild.id
 		);
 
-		const voiceConnection = getVoiceConnection(guild.id);
+		/**
+		 * 1. Server already subscribed on a player
+		 * 2. Server is not subscribed on a player
+		 *
+		 * 1.1. If server is already subscribed, check if it's the same recitation:
+		 * do nothing
+		 * 1.2. If server is subscribed to a different player:
+		 * create a new player & terminate previous player if not listeners exist
+		 */
+
 		const sameRecitation = subscription
 			? subscription.recitation_id === request.id
 			: false;
 
 		const player = await this.retrieveOrCreatePlayer(request);
+
+		const existingPlayer = subscription
+			? this.retrievePlayerByRecitationId(
+					subscription.recitation_id as RecitationIdentifier
+			  )
+			: null;
+
+		if (existingPlayer && subscription && !sameRecitation) {
+			console.log(
+				`[PLAYER-MANAGER] Unsubscribing ${guild.name} from ${existingPlayer.state.name}`
+			);
+			this.unsubscribe(guild, true);
+		}
+
+		console.log(
+			`[PLAYER-MANAGER] Subscribing ${guild.name} to ${request.name}`
+		);
 		player.subscribe(connection, guild);
 
-		console.log({ sameRecitation, request });
-
-		if (sameRecitation && voiceConnection) {
-			return;
-		} else if (subscription) {
-			await this.unsubscribe(guild);
-			player.subscribe(connection, guild);
+		if (!sameRecitation) {
+			console.log(
+				`[PLAYER-MANAGER] Switching ${guild.name} to ${request.name}`
+			);
 			await subscriptionService.subscribeGuild(guild.id, channelId, request.id);
 		}
 
@@ -64,6 +89,12 @@ export class PlayerManager extends EventEmitter {
 			return player.state.surah;
 		}
 	}
+
+	private retrievePlayerByRecitationId = (
+		request: MappedRecitationEdition["id"]
+	) => {
+		return this.players.get(request);
+	};
 
 	private retrieveOrCreatePlayer = async (request: MappedRecitationEdition) => {
 		const existingPlayer = this.players.get(request.id);
@@ -113,7 +144,7 @@ export class PlayerManager extends EventEmitter {
 		player?.subscribe(connection, guild);
 	}
 
-	async unsubscribe(guild: Guild) {
+	async unsubscribe(guild: Guild, playerOnly = false) {
 		// TODO: verify
 		const data = await subscriptionService.getGuildSubscription(guild.id);
 
@@ -129,11 +160,16 @@ export class PlayerManager extends EventEmitter {
 		player.unsubscribe(guild);
 
 		if (player.subscriptions.size === 0) {
+			console.log(
+				`[PLAYER-MANAGER] Terminating player for ${data.recitation_id}`
+			);
 			player.stop();
 			this.players.delete(data.recitation_id);
 		}
 
-		await subscriptionService.unsubscribeGuild(guild.id);
+		if (!playerOnly) {
+			await subscriptionService.unsubscribeGuild(guild.id);
+		}
 	}
 
 	reconnect = async () => {
@@ -162,10 +198,29 @@ export class PlayerManager extends EventEmitter {
 				})
 				.filter(Boolean);
 
+			const expectedRecitations = new Set(
+				subscriptions.map((subscription) => subscription.recitation_id)
+			);
+
+			for (const expectedRecitation of expectedRecitations) {
+				await this.retrieveOrCreatePlayer(
+					recitations.find(
+						(recitation) => recitation.id === expectedRecitation
+					)!
+				);
+			}
+
 			await Promise.allSettled(
 				requests.map(async ({ channelId, guildId, id }) => {
 					const guild = await client.guilds.fetch(guildId);
 					if (!guild) return;
+
+					if (!canConnect(guild, channelId)) {
+						console.log(
+							`[PLAYER-MANAGER] Can't connect to guild ${guild.name} ${guild.id} due to missing permissions`
+						);
+						return;
+					}
 
 					const connection =
 						getVoiceConnection(guildId) ??

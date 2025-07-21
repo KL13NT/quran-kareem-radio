@@ -2,7 +2,9 @@ import { EventEmitter } from "events";
 import { Guild } from "discord.js";
 import {
 	AudioPlayer,
+	AudioPlayerStatus,
 	createAudioPlayer,
+	entersState,
 	NoSubscriberBehavior,
 	VoiceConnection,
 	type AudioResource,
@@ -17,8 +19,8 @@ export declare interface Player {
 	on(event: "playing", listener: () => void): this;
 }
 
-const removePlayerListeners = (player: AudioPlayer) => {
-	console.log("[PLAYER]", "Removing player listeners");
+const removePlayerListeners = (player: AudioPlayer, reason?: string) => {
+	console.log("[PLAYER]", "Removing player listeners", reason);
 	player.removeAllListeners();
 };
 
@@ -56,8 +58,6 @@ export class Player extends EventEmitter {
 			},
 		});
 
-		console.log({ request });
-
 		this.state = {
 			...request,
 			surah: request.id === "default" ? 1 : request.surahs[0],
@@ -76,23 +76,25 @@ export class Player extends EventEmitter {
 	init = async () => {
 		this.resource = await createAudioPlayerResource(this.state);
 
-		this.player.once("playing", () => {
-			this.attachPlayerListeners(this.player);
-		});
-
 		this.player.play(this.resource);
+		await entersState(this.player, AudioPlayerStatus.Playing, 10000);
+		console.log("[PLAYER]", `Player for ${this.state.id} started playing`);
+		this.attachPlayerListeners(this.player);
 
 		if (this.state.id !== "default") {
 			this.resource?.playStream.on("error", (error) => {
 				console.log("[PLAYER]", "Stream errored", error);
-				removePlayerListeners(this.player);
+				removePlayerListeners(this.player, "playStream has errored");
 				this.changeSurah();
 			});
 		}
 	};
 
 	refresh = async () => {
-		removePlayerListeners(this.player);
+		removePlayerListeners(
+			this.player,
+			`Refreshing playback for ${this.state.id}`
+		);
 		this.player.stop();
 		this.resource = await createAudioPlayerResource(this.state);
 		this.attachPlayerListeners(this.player);
@@ -107,45 +109,57 @@ export class Player extends EventEmitter {
 
 		console.log("[PLAYER]", "Attaching player listeners");
 
-		player.on("error", async (error) => {
+		player.on("error", (error) => {
 			console.log("[PLAYER]", `Player error`, error);
-			removePlayerListeners(player);
+			removePlayerListeners(player, "Player has errored");
 			this.changeSurah();
 		});
 
-		player.on("debug", (info) => {
-			console.log("[PLAYER]", info);
-
-			const toRegex = /to.+"status":"(?<status>\w+)"/gm;
-			const matched = toRegex.exec(info);
-
-			if (!matched) {
-				return;
-			}
-
-			const { status } = matched.groups!;
-			const isStopped = status === "idle" || status === "autopaused";
-
-			const isSurah = this.state.id !== "default";
-
-			console.log("[PLAYER]", {
-				status,
-				isStopped,
-				isSurah,
-			});
-
-			if (isStopped && isSurah) {
-				// TODO: Should seek here instead or go to the next one
-				this.changeSurah();
-			} else if (isStopped && !isSurah) {
-				this.refresh();
-			}
+		player.on("stateChange", async (stateChange) => {
+			console.log(
+				`[PLAYER] Player state change for ${this.state.id}`,
+				stateChange.status
+			);
 		});
+
+		this.resource.playStream.on("end", () => {
+			console.log(`[PLAYER] Stream ended for ${this.state.id}`);
+			this.changeSurah();
+		});
+
+		// player.on("debug", (info) => {
+		// 	console.log("[PLAYER]", info);
+
+		// 	const toRegex = /to.+"status":"(?<status>\w+)"/gm;
+		// 	const matched = toRegex.exec(info);
+
+		// 	if (!matched) {
+		// 		return;
+		// 	}
+
+		// 	const { status } = matched.groups!;
+		// 	const isStopped = status === "idle" || status === "autopaused";
+
+		// 	const isSurah = this.state.id !== "default";
+
+		// 	console.log("[PLAYER]", {
+		// 		status,
+		// 		isStopped,
+		// 		isSurah,
+		// 	});
+
+		// 	if (isStopped && isSurah) {
+		// 		// TODO: Should seek here instead or go to the next one
+		// 		this.changeSurah();
+		// 	} else if (isStopped && !isSurah) {
+		// 		this.refresh();
+		// 	}
+		// });
 	};
 
 	changeSurah = async () => {
 		try {
-			removePlayerListeners(this.player);
+			removePlayerListeners(this.player, `Changing surah for ${this.state.id}`);
 
 			if (this.state.id === "default") {
 				return;
@@ -200,7 +214,10 @@ export class Player extends EventEmitter {
 
 	stop = () => {
 		this.player.stop();
-		removePlayerListeners(this.player);
+		removePlayerListeners(
+			this.player,
+			`Stopping playback for ${this.state.id}`
+		);
 	};
 
 	getCurrentSurah = () => {

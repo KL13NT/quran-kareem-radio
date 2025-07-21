@@ -22,6 +22,18 @@ const createVoiceConnection = async (
 	guildId: string,
 	adapterCreator: DiscordGatewayAdapterCreator
 ) => {
+	const existingConnection = getVoiceConnection(guildId);
+
+	if (
+		existingConnection &&
+		existingConnection.state.status === VoiceConnectionStatus.Ready
+	) {
+		console.log(
+			`[VOICE] Voice connection already exists for guild ${guildId}, reusing it`
+		);
+		return existingConnection;
+	}
+
 	const newConnection = joinVoiceChannel({
 		channelId,
 		guildId,
@@ -30,7 +42,11 @@ const createVoiceConnection = async (
 
 	newConnection.configureNetworking();
 
+	console.log(
+		`[VOICE] Joining voice channel ${channelId} for guild ${guildId}`
+	);
 	await entersState(newConnection, VoiceConnectionStatus.Ready, 5_000);
+	console.log(`[VOICE] Joined voice channel ${channelId} for guild ${guildId}`);
 
 	return newConnection;
 };
@@ -50,7 +66,11 @@ const connect = async (interaction: ChatInputCommandInteraction) => {
 
 	const subcommand = interaction.options.getSubcommand();
 	const reciterValue = interaction.options.getString("reciter");
-	const voiceConnection = getVoiceConnection(guild.id);
+	const voiceConnection = await createVoiceConnection(
+		requestChannel.id,
+		guild.id,
+		guild!.voiceAdapterCreator
+	);
 
 	if (subcommand === "recitation" && !reciterValue) {
 		await interaction.editReply(`Invalid command options`);
@@ -75,17 +95,9 @@ const connect = async (interaction: ChatInputCommandInteraction) => {
 	const recitations = await loadRecitations();
 
 	if (subcommand === "radio") {
-		const newConnection =
-			voiceConnection ??
-			(await createVoiceConnection(
-				requestChannel.id,
-				guild.id,
-				guild!.voiceAdapterCreator
-			));
-
-		playerManager.subscribe(
+		await playerManager.subscribe(
 			recitations.find((recitation) => recitation.id === "default")!,
-			newConnection,
+			voiceConnection,
 			guild,
 			requestChannel.id
 		);
@@ -103,15 +115,9 @@ const connect = async (interaction: ChatInputCommandInteraction) => {
 		return;
 	}
 
-	const newConnection = await createVoiceConnection(
-		requestChannel.id,
-		guild.id,
-		guild!.voiceAdapterCreator
-	);
-
 	const surah = await playerManager.subscribe(
 		recitation,
-		newConnection,
+		voiceConnection,
 		guild,
 		requestChannel.id
 	);

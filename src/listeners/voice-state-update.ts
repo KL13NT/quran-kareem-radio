@@ -1,7 +1,10 @@
-import { getVoiceConnection } from "@discordjs/voice";
+import {
+	entersState,
+	getVoiceConnection,
+	VoiceConnectionStatus,
+} from "@discordjs/voice";
 import { VoiceState, type VoiceChannel } from "discord.js";
 import { playerManager } from "~/controllers/player-manager";
-import { subscriptionService } from "~/services/RecitationService";
 
 const { CLIENT_ID } = process.env;
 
@@ -22,83 +25,92 @@ const onVoiceStateUpdate = async (
 
 		if (!voiceConnection) return;
 
-		const connectedChannelId = (
-			await subscriptionService.getGuildSubscription(guild.id)
-		)?.channel_id;
+		if (voiceConnection.state.status !== VoiceConnectionStatus.Ready) {
+			console.log(
+				`[VOICE] Voice connection not ready for guild ${guild.id}, awaiting ready`
+			);
+			await entersState(voiceConnection, VoiceConnectionStatus.Ready, 5_000);
+		}
 
-		if (!connectedChannelId) return;
+		const oldChannel = oldState.channel;
+		const newChannel = newState.channel;
+		const connectedChannelId = voiceConnection.joinConfig.channelId;
 
-		const botChannel = connectedChannelId
-			? ((await guild.channels.fetch(connectedChannelId)) as VoiceChannel)
-			: null;
-
-		const isBot = newState.member?.id === CLIENT_ID;
-		const userLeft = oldState.channel && !newState.channel;
-		const userJoined = !oldState.channel && newState.channel;
-		const userMoved =
-			oldState.channel &&
-			newState.channel &&
-			newState.channel.id !== oldState.channel.id;
-
-		const sameUserBotOldChannel = connectedChannelId === oldState.channel?.id;
-		const sameUserBotNewChannel = connectedChannelId === newState.channel?.id;
-
-		// Using oldState first because users may have moved to a different channel,
-		// which means there are actually two affected channels, the old (which the
-		// bot is connected to) and the new one. We're only interested about the
-		// channel the bot is connected to.
-		const affectedChannelConnected =
-			(userLeft && sameUserBotOldChannel) ||
-			(userJoined && sameUserBotNewChannel) ||
-			(userMoved && sameUserBotOldChannel) ||
-			(userMoved && sameUserBotNewChannel);
-
-		if (!isBot && botChannel && affectedChannelConnected) {
-			if (botChannel.members.size <= 1 && userLeft) {
-				console.log(`Unsubscribing ${guild.name} due to empty channel`);
-				playerManager.unsubscribe(guild);
-			} else if (botChannel.members.size === 2 && (userJoined || userMoved)) {
-				console.log(`Subscribing ${guild.name} due to user joining channel`);
-				await playerManager.refresh(guild, getVoiceConnection(guild.id)!);
-			}
-
+		if (!connectedChannelId) {
+			console.log(
+				`[VOICE] Voice connection not configured for guild ${guild.id}`
+			);
 			return;
 		}
 
-		if (isBot && userLeft) {
+		const botChannel = (await guild.channels.fetch(
+			connectedChannelId
+		)) as VoiceChannel;
+
+		const isBot = newState.member?.id === CLIENT_ID;
+		const left = oldChannel && !newChannel;
+		const joined = !oldChannel && newChannel;
+		const moved = oldChannel && newChannel && newChannel.id !== oldChannel.id;
+		const movedOrLeft = moved || left;
+		const movedOrJoined = moved || joined;
+
+		const sameUserBotOldChannel = connectedChannelId === oldChannel?.id;
+		const sameUserBotNewChannel = connectedChannelId === newChannel?.id;
+		const botChannelAffected = sameUserBotOldChannel || sameUserBotNewChannel;
+
+		/**
+		 * If bot is not affected by channel change, there's nothing to do
+		 */
+		if (!botChannelAffected) return;
+
+		if (isBot && joined) {
+			return;
+		} else if (isBot && moved && newChannel.members.size === 1) {
+			console.log(`Unsubscribing ${guild.name} due to empty channel`);
+			await playerManager.unsubscribe(guild, true);
+			// TODO: verify this gets updated automatically
+			// TODO: verify bot can connect
 			console.log(
-				`Bot disconnected from ${oldState.guild.name} ${oldState.channel?.name}`
+				`Bot has been moved from ${oldState.guild.name} ${oldChannel.name} to ${newChannel.name}`
 			);
-
-			getVoiceConnection(oldState.guild.id)?.destroy();
-
-			playerManager.unsubscribe(guild);
-			await subscriptionService.unsubscribeGuild(guild.id);
-		} else if (isBot && userMoved) {
+		} else if (isBot && left) {
 			console.log(
-				`Bot has been moved from ${oldState.guild.name} ${oldState.channel.name} to ${newState.channel.name}`
+				`Bot disconnected from ${oldState.guild.name} ${oldChannel?.name}`
 			);
-
-			const targetChannel = (await guild.channels.fetch(
-				newState.channel.id
-			)) as VoiceChannel;
-
-			await subscriptionService.updateGuildSubscription(guild.id, {
-				channel_id: newState.channel.id,
-			});
-
-			if (targetChannel.members.size <= 1) {
-				console.log(`Unsubscribing ${guild.name} due to empty channel`);
-				playerManager.unsubscribe(guild);
-			} else {
-				console.log(
-					`Subscribing ${guild.name}:${targetChannel.name} due to user joining channel`
-				);
-				await playerManager.refresh(guild, getVoiceConnection(guild.id)!);
-			}
+			await playerManager.unsubscribe(guild);
+		} else if (!isBot && movedOrLeft && botChannel.members.size === 1) {
+			console.log(`Unsubscribing ${guild.name} due to empty channel`);
+			await playerManager.unsubscribe(guild, true);
+		} else if (!isBot && movedOrJoined && botChannel.members.size === 2) {
+			console.log(`Resubscribing ${guild.name} due to user joining channel`);
+			await playerManager.refresh(guild, getVoiceConnection(guild.id)!);
 		}
+
+		// if (isBot && moved && canConnect(newState.guild, newChannel.id)) {
+		// 	console.log(
+		// 		`Bot has been moved from ${oldState.guild.name} ${oldChannel.name} to ${newChannel.name}`
+		// 	);
+
+		// 	const targetChannel = (await guild.channels.fetch(
+		// 		newChannel.id
+		// 	)) as VoiceChannel;
+
+		// 	await subscriptionService.updateGuildSubscription(guild.id, {
+		// 		channel_id: newChannel.id,
+		// 	});
+
+		// 	if (targetChannel.members.size <= 1) {
+		// 		console.log(`Unsubscribing ${guild.name} due to empty channel`);
+		// 		playerManager.unsubscribe(guild);
+		// 	} else {
+		// 		console.log(
+		// 			`Subscribing ${guild.name}:${targetChannel.name} due to user joining channel`
+		// 		);
+		// 		await playerManager.refresh(guild, getVoiceConnection(guild.id)!);
+		// 	}
+		// }
 	} catch (error) {
-		console.log(error);
+		console.log(`[VOICE-STATE-UPDATE]`, (error as Error).message);
 	}
 };
 

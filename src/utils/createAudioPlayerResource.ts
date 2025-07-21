@@ -99,11 +99,6 @@ const createFFmpegStream = async (url: string, seek = 0) => {
 
 export const createAudioPlayerResource = async (data: PlaybackRequest) => {
 	const url = createResourceURL(data);
-
-	if (data.id === "default") {
-		return createAudioResource(url);
-	}
-
 	const stream = await createFFmpegStream(url);
 	return createAudioResource(stream);
 };

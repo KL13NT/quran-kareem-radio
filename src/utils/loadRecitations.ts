@@ -165,7 +165,7 @@ export const loadRecitations = memoize(async () => {
 		{
 			id: "default",
 			name: "إذاعة القرآن الكريم من القاهرة - Cairo's Quran Karim Radio",
-			server: "https://n0b.radiojar.com/8s5u5tpdtwzuv",
+			server: process.env.STREAM,
 		},
 		...mappedEditions,
 	] as MappedRecitationEdition[];
