@@ -76,6 +76,8 @@ export type Identifier = string;
  */
 export type DiscordIdentifier = string;
 
+export type RecitationIdentifier = "default" | `${number}-${number}`;
+
 export interface Moshaf {
 	id: number;
 	name: string;
@@ -103,10 +105,14 @@ export interface RecitationEdition {
 }
 
 export type MappedRecitationEdition =
-	| { id: "default"; name: string; server: string }
+	| {
+			id: Extract<RecitationIdentifier, "default">;
+			name: string;
+			server: string;
+	  }
 	// eslint-disable-next-line @typescript-eslint/ban-types
 	| {
-			id: `${number}-${number}`;
+			id: RecitationIdentifier;
 			name: string;
 			surahs: number[];
 			server: string;

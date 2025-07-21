@@ -13,6 +13,13 @@ const onVoiceStateUpdate = async (
 		const guild = newState.guild ?? oldState.guild;
 		const voiceConnection = getVoiceConnection(guild.id);
 
+		/**
+		 * If bot is not connected to a voice channel, there's nothing to do
+		 * If bot is moved between channels, check if voice connection automatically
+		 * picks up the change
+		 *
+		 */
+
 		if (!voiceConnection) return;
 
 		const connectedChannelId = (

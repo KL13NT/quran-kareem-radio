@@ -57,7 +57,7 @@ export class PlayerManager extends EventEmitter {
 		} else if (subscription) {
 			await this.unsubscribe(guild);
 			player.subscribe(connection, guild);
-			await subscriptionService.subscribeGuild(guild.id, request.id, channelId);
+			await subscriptionService.subscribeGuild(guild.id, channelId, request.id);
 		}
 
 		if (player.state.id !== "default") {
