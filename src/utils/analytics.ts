@@ -5,6 +5,14 @@ const ANALYTICS_INTERVAL = 5 * 60 * 1000; /* 5 minutes */
 const ANALYTICS_CHANNEL_ID = process.env.ANALYTICS_CHANNEL_ID;
 const DEV_SERVER_ID = process.env.DEV_SERVER_ID;
 
+/**
+ * TODO: Refactor this to include the following
+ * 1. Total daily listeners (automatically cleared)
+ * 2. Hourly listeners
+ * 3. Total active playbacks
+ * 4.? Active listeners per playback?
+ *
+ */
 export const initAnalytics = (client: Client) => {
 	if (process.env.MODE !== "PRODUCTION") return;
 

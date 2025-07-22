@@ -28,8 +28,6 @@ async function createHttpStream(url: string): Promise<Readable> {
 		const client = parsedUrl.protocol === "https:" ? https : http;
 
 		const request = client.get(url, (response) => {
-			console.log(url);
-
 			if (response.statusCode !== 200) {
 				reject(new Error(`HTTP error! status: ${response.statusCode}`));
 				return;

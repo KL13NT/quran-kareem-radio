@@ -11,8 +11,9 @@ import {
 	type PlayerSubscription,
 } from "@discordjs/voice";
 import { createAudioPlayerResource } from "~/utils/createAudioPlayerResource";
-import type { MappedRecitationEdition, PlaybackRequest } from "~/types";
+import type { PlaybackRequest } from "~/types";
 import console from "console";
+import type { PlaybackService } from "~/services/PlaybackService";
 
 export declare interface Player {
 	// eslint-disable-next-line no-unused-vars
@@ -48,7 +49,10 @@ export class Player extends EventEmitter {
 	state!: PlaybackRequest;
 	resource!: AudioResource;
 
-	constructor(request: MappedRecitationEdition) {
+	constructor(
+		private readonly playbackService: PlaybackService,
+		request: PlaybackRequest
+	) {
 		super();
 
 		const player = createAudioPlayer({
@@ -60,18 +64,10 @@ export class Player extends EventEmitter {
 
 		this.state = {
 			...request,
-			surah: request.id === "default" ? 1 : request.surahs[0],
+			surah: request.id === "default" ? 1 : request.surah ?? request.surahs[0],
 		};
 		this.player = player;
 	}
-
-	setState = (request: Partial<PlaybackRequest>) => {
-		return {
-			...this.state,
-			request,
-			started: new Date(),
-		};
-	};
 
 	init = async () => {
 		this.resource = await createAudioPlayerResource(this.state);
@@ -87,6 +83,11 @@ export class Player extends EventEmitter {
 				removePlayerListeners(this.player, "playStream has errored");
 				this.changeSurah();
 			});
+
+			await this.playbackService.setPlaybackProgress(
+				this.state.id,
+				this.state.surah
+			);
 		}
 	};
 
@@ -126,35 +127,6 @@ export class Player extends EventEmitter {
 			console.log(`[PLAYER] Stream ended for ${this.state.id}`);
 			this.changeSurah();
 		});
-
-		// player.on("debug", (info) => {
-		// 	console.log("[PLAYER]", info);
-
-		// 	const toRegex = /to.+"status":"(?<status>\w+)"/gm;
-		// 	const matched = toRegex.exec(info);
-
-		// 	if (!matched) {
-		// 		return;
-		// 	}
-
-		// 	const { status } = matched.groups!;
-		// 	const isStopped = status === "idle" || status === "autopaused";
-
-		// 	const isSurah = this.state.id !== "default";
-
-		// 	console.log("[PLAYER]", {
-		// 		status,
-		// 		isStopped,
-		// 		isSurah,
-		// 	});
-
-		// 	if (isStopped && isSurah) {
-		// 		// TODO: Should seek here instead or go to the next one
-		// 		this.changeSurah();
-		// 	} else if (isStopped && !isSurah) {
-		// 		this.refresh();
-		// 	}
-		// });
 	};
 
 	changeSurah = async () => {
@@ -173,6 +145,7 @@ export class Player extends EventEmitter {
 				surah: nextSurah,
 			};
 
+			await this.playbackService.setPlaybackProgress(this.state.id, nextSurah);
 			const resource = await createAudioPlayerResource(updatedState);
 			this.state = updatedState;
 			this.resource = resource;
@@ -212,7 +185,9 @@ export class Player extends EventEmitter {
 		this.subscriptions.delete(guild.id);
 	};
 
-	stop = () => {
+	stop = async () => {
+		await this.playbackService.deletePlaybackProgress(this.state.id);
+
 		this.player.stop();
 		removePlayerListeners(
 			this.player,

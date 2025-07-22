@@ -6,16 +6,17 @@ import console from "console";
 
 let helpText: string;
 
-const help = async (interaction: CommandInteraction) => {
-	await interaction.deferReply();
+const help: CommandType["run"] =
+	() => async (interaction: CommandInteraction) => {
+		await interaction.deferReply();
 
-	if (!helpText) {
-		console.log("Loading help text for the first time");
-		helpText = await readFile(resolve(__dirname, "../../help.txt"), "utf-8");
-	}
+		if (!helpText) {
+			console.log("Loading help text for the first time");
+			helpText = await readFile(resolve(__dirname, "../../help.txt"), "utf-8");
+		}
 
-	await interaction.editReply(helpText);
-};
+		await interaction.editReply(helpText);
+	};
 
 export default {
 	name: "help",

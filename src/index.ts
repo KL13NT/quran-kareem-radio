@@ -6,10 +6,41 @@ import { onInteractionCreateEvent } from "~/listeners/interaction-create";
 import { onVoiceStateUpdateEvent } from "~/listeners/voice-state-update";
 
 import { client } from "./controllers/client";
-import { playerManager } from "./controllers/player-manager";
+import { PlayerManager } from "./controllers/player-manager";
 import { loadRecitations } from "./utils/loadRecitations";
+import { createClient } from "@supabase/supabase-js";
+import { Environment } from "./controllers/environment";
+import { PlaybackService } from "./services/PlaybackService";
+import { SubscriptionService } from "./services/SubscriptionService";
 
-const { TOKEN, DEBUG } = process.env;
+const environment = new Environment({
+	TOKEN: { type: "string" },
+	DEBUG: {
+		type: "string",
+		values: ["true", "false"],
+		optional: true,
+	},
+	SUPABASE_URL: { type: "string" },
+	SUPABASE_KEY: { type: "string" },
+	ANALYTICS_CHANNEL_ID: { type: "string" },
+	CLIENT_ID: { type: "string" },
+	CLIENT_SECRET: { type: "string" },
+	DEV_SERVER_ID: { type: "string" },
+	PERMISSIONS: { type: "string" },
+	PUBLIC_KEY: { type: "string" },
+	MODE: {
+		type: "string",
+		values: ["DEVELOPMENT", "PRODUCTION"],
+	},
+	STREAM: { type: "string" },
+});
+
+globalThis["env"] = environment;
+
+const TOKEN = environment.get("TOKEN");
+const DEBUG = environment.get("DEBUG");
+const SUPABASE_URL = environment.get("SUPABASE_URL");
+const SUPABASE_KEY = environment.get("SUPABASE_KEY");
 
 if (DEBUG === "true") {
 	client.on("debug", (info) => console.log(info));
@@ -19,6 +50,12 @@ if (DEBUG === "true") {
 
 client.once("ready", async () => {
 	console.log("Ready!");
+
+	const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+	const playbackService = new PlaybackService(supabase);
+	const subscriptionService = new SubscriptionService(supabase);
+
+	const playerManager = new PlayerManager(playbackService, subscriptionService);
 
 	await loadRecitations();
 
@@ -37,9 +74,24 @@ client.once("ready", async () => {
 
 	initAnalytics(client);
 
-	await playerManager.reconnect();
-	client.on(onVoiceStateUpdateEvent.name, onVoiceStateUpdateEvent.execute);
-	client.on(onInteractionCreateEvent.name, onInteractionCreateEvent.execute);
+	if (environment.get("MODE") === "PRODUCTION") {
+		await playerManager.reconnect();
+	}
+
+	const listenerDeps = {
+		playbackService,
+		playerManager,
+		subscriptionService,
+	};
+
+	client.on(
+		onVoiceStateUpdateEvent.name,
+		onVoiceStateUpdateEvent.execute(listenerDeps)
+	);
+	client.on(
+		onInteractionCreateEvent.name,
+		onInteractionCreateEvent.execute(listenerDeps)
+	);
 });
 
 client.login(TOKEN);

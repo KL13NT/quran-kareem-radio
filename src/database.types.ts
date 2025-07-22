@@ -35,6 +35,21 @@ export type Database = {
         }
         Relationships: []
       }
+      "recitation progress": {
+        Row: {
+          recitation_id: string
+          surah: number
+        }
+        Insert: {
+          recitation_id: string
+          surah: number
+        }
+        Update: {
+          recitation_id?: string
+          surah?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

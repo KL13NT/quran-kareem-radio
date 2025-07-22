@@ -1,8 +1,12 @@
 import type {
 	AutocompleteInteraction,
+	ClientEvents,
 	CommandInteraction,
 	Interaction,
 } from "discord.js";
+import type { PlayerManager } from "./controllers/player-manager";
+import type { SubscriptionService } from "./services/SubscriptionService";
+import type { PlaybackService } from "./services/PlaybackService";
 
 export type DeployCommandsResponse = {
 	length: number;
@@ -58,9 +62,22 @@ export interface SubcommandType extends BaseCommandType {
 }
 
 export interface CommandType extends BaseCommandType {
-	run: (interaction: CommandInteraction) => Promise<void>;
+	run: (deps: {
+		playerManager: PlayerManager;
+		subscriptionService: SubscriptionService;
+		playbackService: PlaybackService;
+	}) => (interaction: CommandInteraction) => Promise<void>;
 	subcommands?: SubcommandType[];
 	type: "command";
+}
+
+export interface ListenerType<T extends keyof ClientEvents> {
+	execute: (deps: {
+		playerManager: PlayerManager;
+		subscriptionService: SubscriptionService;
+		playbackService: PlaybackService;
+	}) => (...args: ClientEvents[T]) => Promise<void>;
+	name: string;
 }
 
 /**
@@ -121,19 +138,5 @@ export type MappedRecitationEdition =
 export interface Response {
 	reciters: RecitationEdition[];
 }
-
-export type SurahPlaybackRequest = {
-	moshafId: number;
-	reciter: RecitationEdition;
-	surah: number;
-};
-
-export type StoredRecitationRequest = {
-	id: Identifier;
-	guild_id: DiscordIdentifier;
-	channel_id: DiscordIdentifier;
-	recitation_id: Identifier;
-	surah?: number;
-};
 
 export type PlaybackRequest = MappedRecitationEdition & { surah: number };

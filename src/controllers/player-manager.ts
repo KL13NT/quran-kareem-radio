@@ -15,12 +15,13 @@ import type {
 	RecitationIdentifier,
 } from "~/types";
 import { EventEmitter } from "stream";
-import { Player } from "./player";
+import { Player } from "../entities/player";
 import console, { log } from "node:console";
 import { client } from "./client";
 import { loadRecitations } from "~/utils/loadRecitations";
-import { subscriptionService } from "~/services/RecitationService";
 import { canConnect } from "~/utils/can-connect";
+import type { SubscriptionService } from "~/services/SubscriptionService";
+import type { PlaybackService } from "~/services/PlaybackService";
 
 export declare interface PlayerManager {
 	// eslint-disable-next-line no-unused-vars
@@ -30,7 +31,10 @@ export declare interface PlayerManager {
 export class PlayerManager extends EventEmitter {
 	private players = new Map<Identifier, Player>();
 
-	constructor() {
+	constructor(
+		private readonly playbackService: PlaybackService,
+		private readonly subscriptionService: SubscriptionService
+	) {
 		super();
 	}
 
@@ -40,7 +44,7 @@ export class PlayerManager extends EventEmitter {
 		guild: Guild,
 		channelId: DiscordIdentifier
 	) {
-		const subscription = await subscriptionService.getGuildSubscription(
+		const subscription = await this.subscriptionService.getGuildSubscription(
 			guild.id
 		);
 
@@ -82,7 +86,11 @@ export class PlayerManager extends EventEmitter {
 			console.log(
 				`[PLAYER-MANAGER] Switching ${guild.name} to ${request.name}`
 			);
-			await subscriptionService.subscribeGuild(guild.id, channelId, request.id);
+			await this.subscriptionService.subscribeGuild(
+				guild.id,
+				channelId,
+				request.id
+			);
 		}
 
 		if (player.state.id !== "default") {
@@ -96,14 +104,19 @@ export class PlayerManager extends EventEmitter {
 		return this.players.get(request);
 	};
 
-	private retrieveOrCreatePlayer = async (request: MappedRecitationEdition) => {
+	private retrieveOrCreatePlayer = async (
+		request: MappedRecitationEdition & { surah?: number }
+	) => {
 		const existingPlayer = this.players.get(request.id);
 
 		if (existingPlayer) {
 			return existingPlayer;
 		}
 
-		const player = new Player(request);
+		const player = new Player(this.playbackService, {
+			...request,
+			surah: request.surah || 1,
+		});
 		await player.init();
 		this.players.set(request.id, player);
 		return player;
@@ -111,7 +124,7 @@ export class PlayerManager extends EventEmitter {
 
 	async refresh(guild: Guild, connection: VoiceConnection) {
 		const recitations = await loadRecitations();
-		const subscription = await subscriptionService.getGuildSubscription(
+		const subscription = await this.subscriptionService.getGuildSubscription(
 			guild.id
 		);
 
@@ -145,8 +158,7 @@ export class PlayerManager extends EventEmitter {
 	}
 
 	async unsubscribe(guild: Guild, playerOnly = false) {
-		// TODO: verify
-		const data = await subscriptionService.getGuildSubscription(guild.id);
+		const data = await this.subscriptionService.getGuildSubscription(guild.id);
 
 		if (!data) return;
 
@@ -163,22 +175,20 @@ export class PlayerManager extends EventEmitter {
 			console.log(
 				`[PLAYER-MANAGER] Terminating player for ${data.recitation_id}`
 			);
-			player.stop();
+			await player.stop();
 			this.players.delete(data.recitation_id);
 		}
 
 		if (!playerOnly) {
-			await subscriptionService.unsubscribeGuild(guild.id);
+			await this.subscriptionService.unsubscribeGuild(guild.id);
 		}
 	}
 
 	reconnect = async () => {
 		try {
-			if (process.env.MODE === "DEVELOPMENT") return;
-
 			console.log("Reconnecting players to guilds");
 
-			const subscriptions = await subscriptionService.getAllRecitations();
+			const subscriptions = await this.subscriptionService.getAllRecitations();
 			const recitations = await loadRecitations();
 			const requests = subscriptions
 				.map((subscription) => {
@@ -203,11 +213,21 @@ export class PlayerManager extends EventEmitter {
 			);
 
 			for (const expectedRecitation of expectedRecitations) {
-				await this.retrieveOrCreatePlayer(
-					recitations.find(
-						(recitation) => recitation.id === expectedRecitation
-					)!
+				const surah = await this.playbackService.getPlaybackProgress(
+					expectedRecitation
 				);
+
+				console.log(
+					`Found expected recitation ${expectedRecitation} at surah ${surah}`
+				);
+				const expectedRecitationObject = recitations.find(
+					(recitation) => recitation.id === expectedRecitation
+				)!;
+
+				await this.retrieveOrCreatePlayer({
+					...expectedRecitationObject,
+					surah: surah ?? 1,
+				});
 			}
 
 			await Promise.allSettled(
@@ -276,9 +296,7 @@ export class PlayerManager extends EventEmitter {
 				})
 			);
 		} catch (error) {
-			log("Couldn't load memory cache file", error);
+			log("Couldn't reconnect", error);
 		}
 	};
 }
-
-export const playerManager = new PlayerManager();
