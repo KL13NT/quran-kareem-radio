@@ -52,34 +52,49 @@ const onVoiceStateUpdate: ListenerType<"voiceStateUpdate">["execute"] =
 			const joined = !oldChannel && newChannel;
 			const moved = oldChannel && newChannel && newChannel.id !== oldChannel.id;
 			const movedOrLeft = moved || left;
-			const movedOrJoined = moved || joined;
 
 			const sameUserBotOldChannel = connectedChannelId === oldChannel?.id;
 			const sameUserBotNewChannel = connectedChannelId === newChannel?.id;
 			const botChannelAffected = sameUserBotOldChannel || sameUserBotNewChannel;
+
+			const botMovedToEmptyChannel =
+				isBot && moved && newChannel.members.size === 1;
+			const botMovedToNonEmptyChannel =
+				isBot && moved && newChannel.members.size > 1;
+			const botJoinedChannel = isBot && joined;
+			const botLeftChannel = isBot && left;
+			const channelEmptyAfterUserMovement =
+				!isBot && movedOrLeft && botChannel.members.size === 1;
+			const channelOccupiedAfterUserMovement =
+				!isBot && joined && botChannel.members.size === 2;
 
 			/**
 			 * If bot is not affected by channel change, there's nothing to do
 			 */
 			if (!botChannelAffected) return;
 
-			if (isBot && joined) {
+			if (botJoinedChannel) {
 				return;
-			} else if (isBot && moved && newChannel.members.size === 1) {
+			} else if (botMovedToEmptyChannel) {
 				console.log(`Unsubscribing ${guild.name} due to empty channel`);
 				await playerManager.unsubscribe(guild, true);
 				console.log(
 					`Bot has been moved from ${oldState.guild.name} ${oldChannel.name} to ${newChannel.name}`
 				);
-			} else if (isBot && left) {
+			} else if (botMovedToNonEmptyChannel) {
+				console.log(
+					`Bot has been moved from ${oldState.guild.name} ${oldChannel.name} to ${newChannel.name}`
+				);
+				return;
+			} else if (botLeftChannel) {
 				console.log(
 					`Bot disconnected from ${oldState.guild.name} ${oldChannel?.name}`
 				);
 				await playerManager.unsubscribe(guild);
-			} else if (!isBot && movedOrLeft && botChannel.members.size === 1) {
+			} else if (channelEmptyAfterUserMovement) {
 				console.log(`Unsubscribing ${guild.name} due to empty channel`);
 				await playerManager.unsubscribe(guild, true);
-			} else if (!isBot && movedOrJoined && botChannel.members.size === 2) {
+			} else if (channelOccupiedAfterUserMovement) {
 				console.log(`Resubscribing ${guild.name} due to user joining channel`);
 				await playerManager.refresh(guild, getVoiceConnection(guild.id)!);
 			}

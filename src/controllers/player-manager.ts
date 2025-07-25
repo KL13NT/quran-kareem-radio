@@ -29,6 +29,9 @@ export declare interface PlayerManager {
 }
 
 export class PlayerManager extends EventEmitter {
+	/**
+	 * Maps
+	 */
 	private players = new Map<Identifier, Player>();
 
 	constructor(
@@ -121,6 +124,24 @@ export class PlayerManager extends EventEmitter {
 		this.players.set(request.id, player);
 		return player;
 	};
+
+	async isGuildSubscribed(guildId: DiscordIdentifier) {
+		const recitation = await this.subscriptionService.getGuildSubscription(
+			guildId
+		);
+
+		if (!recitation) {
+			return false;
+		}
+
+		const player = this.players.get(recitation.recitation_id);
+
+		if (!player) {
+			return false;
+		}
+
+		return player.isGuildSubscribed(guildId);
+	}
 
 	async refresh(guild: Guild, connection: VoiceConnection) {
 		const recitations = await loadRecitations();

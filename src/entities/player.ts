@@ -11,7 +11,7 @@ import {
 	type PlayerSubscription,
 } from "@discordjs/voice";
 import { createAudioPlayerResource } from "~/utils/createAudioPlayerResource";
-import type { PlaybackRequest } from "~/types";
+import type { DiscordIdentifier, PlaybackRequest } from "~/types";
 import console from "console";
 import type { PlaybackService } from "~/services/PlaybackService";
 
@@ -48,6 +48,7 @@ export class Player extends EventEmitter {
 	subscriptions = new Map<string, PlayerSubscription>();
 	state!: PlaybackRequest;
 	resource!: AudioResource;
+	bufferingTimeout!: NodeJS.Timeout;
 
 	constructor(
 		private readonly playbackService: PlaybackService,
@@ -91,15 +92,16 @@ export class Player extends EventEmitter {
 		}
 	};
 
-	refresh = async () => {
+	refresh = async (reason?: string) => {
 		removePlayerListeners(
 			this.player,
-			`Refreshing playback for ${this.state.id}`
+			`Refreshing playback for ${this.state.id}. Reason: ${reason}`
 		);
 		this.player.stop();
 		this.resource = await createAudioPlayerResource(this.state);
 		this.attachPlayerListeners(this.player);
 		this.player.play(this.resource);
+		clearTimeout(this.bufferingTimeout);
 	};
 
 	attachPlayerListeners = (player: AudioPlayer) => {
@@ -121,6 +123,16 @@ export class Player extends EventEmitter {
 				`[PLAYER] Player state change for ${this.state.id}`,
 				stateChange.status
 			);
+
+			if (stateChange.status !== AudioPlayerStatus.Playing) {
+				this.bufferingTimeout = setTimeout(
+					() =>
+						this.refresh(
+							"Player state froze in not Playing for more than 5 seconds"
+						),
+					5_000
+				);
+			}
 		});
 
 		this.resource.playStream.on("end", () => {
@@ -197,5 +209,9 @@ export class Player extends EventEmitter {
 
 	getCurrentSurah = () => {
 		return this.state.surah;
+	};
+
+	isGuildSubscribed = (guildId: DiscordIdentifier) => {
+		return this.subscriptions.has(guildId);
 	};
 }
