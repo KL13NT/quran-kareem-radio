@@ -77,7 +77,7 @@ export class PlayerManager extends EventEmitter {
 			console.log(
 				`[PLAYER-MANAGER] Unsubscribing ${guild.name} from ${existingPlayer.state.name}`
 			);
-			this.unsubscribe(guild, true);
+			await this.unsubscribe(guild, true);
 		}
 
 		console.log(
