@@ -84,6 +84,7 @@ client.once("ready", async () => {
 		subscriptionService,
 	};
 
+	console.log(`[CORE] attaching client listeners`);
 	client.on(
 		onVoiceStateUpdateEvent.name,
 		onVoiceStateUpdateEvent.execute(listenerDeps)

@@ -65,7 +65,7 @@ const onInteractionCreate: ListenerType<"interactionCreate">["execute"] =
 				await command.run(deps)(interaction);
 			}
 		} catch (error) {
-			console.log(error);
+			console.error((error as Error).message);
 		}
 	};
 

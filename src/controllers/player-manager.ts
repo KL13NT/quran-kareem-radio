@@ -6,7 +6,7 @@ import {
 	type DiscordGatewayAdapterCreator,
 	type VoiceConnection,
 } from "@discordjs/voice";
-import { type Guild } from "discord.js";
+import { VoiceChannel, type Guild } from "discord.js";
 import type {
 	DiscordIdentifier,
 	Identifier,
@@ -83,7 +83,7 @@ export class PlayerManager extends EventEmitter {
 		console.log(
 			`[PLAYER-MANAGER] Subscribing ${guild.name} to ${request.name}`
 		);
-		player.subscribe(connection, guild);
+		await player.subscribe(connection, guild);
 
 		if (!sameRecitation) {
 			console.log(
@@ -120,6 +120,7 @@ export class PlayerManager extends EventEmitter {
 			...request,
 			surah: request.surah || 1,
 		});
+
 		await player.init();
 		this.players.set(request.id, player);
 		return player;
@@ -175,7 +176,7 @@ export class PlayerManager extends EventEmitter {
 			);
 		}
 
-		player?.subscribe(connection, guild);
+		await player?.subscribe(connection, guild);
 	}
 
 	async unsubscribe(guild: Guild, playerOnly = false) {
@@ -229,30 +230,42 @@ export class PlayerManager extends EventEmitter {
 				})
 				.filter(Boolean);
 
-			const expectedRecitations = new Set(
-				subscriptions.map((subscription) => subscription.recitation_id)
+			const expectedRecitations = Array.from(
+				new Set(subscriptions.map((subscription) => subscription.recitation_id))
 			);
 
-			for (const expectedRecitation of expectedRecitations) {
-				const surah = await this.playbackService.getPlaybackProgress(
-					expectedRecitation
-				);
+			const playbacks = await this.playbackService.bulkGetPlaybackProgress(
+				expectedRecitations
+			);
+
+			if (!playbacks) return;
+
+			playbacks.forEach(async ({ surah }, index) => {
+				const expectedRecitation = expectedRecitations[index];
 
 				console.log(
 					`Found expected recitation ${expectedRecitation} at surah ${surah}`
 				);
+
 				const expectedRecitationObject = recitations.find(
 					(recitation) => recitation.id === expectedRecitation
 				)!;
 
-				await this.retrieveOrCreatePlayer({
-					...expectedRecitationObject,
-					surah: surah ?? 1,
-				});
-			}
+				try {
+					await this.retrieveOrCreatePlayer({
+						...expectedRecitationObject,
+						surah: surah ?? 1,
+					});
+				} catch (error) {
+					console.log(
+						`[PLAYER-MANAGER] FATAL on reconnect ${surah}`,
+						(error as Error).message
+					);
+				}
+			});
 
-			await Promise.allSettled(
-				requests.map(async ({ channelId, guildId, id }) => {
+			for (const { channelId, guildId, id } of requests) {
+				try {
 					const guild = await client.guilds.fetch(guildId);
 					if (!guild) return;
 
@@ -262,6 +275,10 @@ export class PlayerManager extends EventEmitter {
 						);
 						return;
 					}
+
+					const channel = (await guild.channels.fetch(
+						channelId
+					)!) as VoiceChannel;
 
 					const connection =
 						getVoiceConnection(guildId) ??
@@ -300,6 +317,13 @@ export class PlayerManager extends EventEmitter {
 						await entersState(connection, VoiceConnectionStatus.Ready, 5_000);
 					}
 
+					if (channel.members.size === 0) {
+						console.log(
+							`[PLAYER-MANAGER] Guild ${guild.name} ${guild.id} has no members. Ignoring reconnect until someone joins.`
+						);
+						return;
+					}
+
 					const targetRecitation = recitations.find(
 						(recitation) => recitation.id === id
 					);
@@ -314,8 +338,13 @@ export class PlayerManager extends EventEmitter {
 					};
 
 					await this.subscribe(recitationRequest, connection, guild, channelId);
-				})
-			);
+				} catch (error) {
+					console.log(
+						`[PLAYER-MANAGER] Couldn't reconnect to guild ${guildId}`,
+						(error as Error).message
+					);
+				}
+			}
 		} catch (error) {
 			log("Couldn't reconnect", error);
 		}

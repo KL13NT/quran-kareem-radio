@@ -44,6 +44,24 @@ export class PlaybackService {
 		return data[0].surah;
 	}
 
+	async bulkGetPlaybackProgress(recitationIds: Identifier[]) {
+		const { data, error } = await this.supabase
+			.from("recitation progress")
+			.select("surah")
+			.in("recitation_id", recitationIds);
+
+		if (error) {
+			console.error(`[SUPABASE] ${error.message}`, console.trace());
+			return null;
+		}
+
+		if (!data || data.length === 0) {
+			return null;
+		}
+
+		return data;
+	}
+
 	async deletePlaybackProgress(recitationId: Identifier) {
 		const { data, error } = await this.supabase
 			.from("recitation progress")

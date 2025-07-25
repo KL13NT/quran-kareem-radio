@@ -1,8 +1,4 @@
-import {
-	entersState,
-	getVoiceConnection,
-	VoiceConnectionStatus,
-} from "@discordjs/voice";
+import { getVoiceConnection } from "@discordjs/voice";
 import { VoiceState, type VoiceChannel } from "discord.js";
 import type { ListenerType } from "~/types";
 
@@ -23,14 +19,6 @@ const onVoiceStateUpdate: ListenerType<"voiceStateUpdate">["execute"] =
 			 */
 
 			if (!voiceConnection) return;
-
-			if (voiceConnection.state.status !== VoiceConnectionStatus.Ready) {
-				console.log(
-					`[VOICE] Voice connection not ready with status ${voiceConnection.state.status} for guild ${guild.id}, awaiting ready`
-				);
-				voiceConnection.configureNetworking();
-				await entersState(voiceConnection, VoiceConnectionStatus.Ready, 5_000);
-			}
 
 			const oldChannel = oldState.channel;
 			const newChannel = newState.channel;
@@ -99,7 +87,7 @@ const onVoiceStateUpdate: ListenerType<"voiceStateUpdate">["execute"] =
 				await playerManager.refresh(guild, getVoiceConnection(guild.id)!);
 			}
 		} catch (error) {
-			console.log(`[VOICE-STATE-UPDATE]`, (error as Error).message);
+			console.log(`[VOICE-STATE-UPDATE] FATAL`, (error as Error).message);
 		}
 	};
 

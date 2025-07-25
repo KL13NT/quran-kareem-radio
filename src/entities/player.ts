@@ -170,16 +170,8 @@ export class Player extends EventEmitter {
 		}
 	};
 
-	subscribe = (connection: VoiceConnection, guild: Guild) => {
+	subscribe = async (connection: VoiceConnection, guild: Guild) => {
 		try {
-			if (this.subscriptions.has(guild.id)) {
-				console.log(
-					"[PLAYER]",
-					`Dismissing subscription request for ${guild.name} since it already exists.`
-				);
-				return;
-			}
-
 			console.log("[PLAYER]", `Subscribing ${guild.name}`);
 			const subscription = connection.subscribe(this.player);
 
