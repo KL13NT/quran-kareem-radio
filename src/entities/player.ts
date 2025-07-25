@@ -123,22 +123,24 @@ export class Player extends EventEmitter {
 				`[PLAYER] Player state change for ${this.state.id}`,
 				stateChange.status
 			);
+		});
 
-			if (stateChange.status !== AudioPlayerStatus.Playing) {
-				this.bufferingTimeout = setTimeout(
-					() =>
-						this.refresh(
-							"Player state froze in not Playing for more than 5 seconds"
-						),
-					5_000
-				);
+		const refreshOnStreamConditions = () => {
+			console.log(
+				`[PLAYER] Stream ended, closed, paused, or errored for ${this.state.id}`
+			);
+
+			if (this.state.id === "default") {
+				this.refresh("Radio play stream ended");
+			} else {
+				this.changeSurah();
 			}
-		});
+		};
 
-		this.resource.playStream.on("end", () => {
-			console.log(`[PLAYER] Stream ended for ${this.state.id}`);
-			this.changeSurah();
-		});
+		this.resource.playStream.on("close", refreshOnStreamConditions);
+		this.resource.playStream.on("end", refreshOnStreamConditions);
+		this.resource.playStream.on("error", refreshOnStreamConditions);
+		this.resource.playStream.on("pause", refreshOnStreamConditions);
 	};
 
 	changeSurah = async () => {
