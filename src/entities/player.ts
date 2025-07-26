@@ -190,14 +190,16 @@ export class Player extends EventEmitter {
 		this.subscriptions.delete(guild.id);
 	};
 
-	stop = async () => {
-		await this.playbackService.deletePlaybackProgress(this.state.id);
+	stop = async (keepProgress = false) => {
+		if (!keepProgress) {
+			await this.playbackService.deletePlaybackProgress(this.state.id);
+		}
 
-		this.player.stop();
 		removePlayerListeners(
 			this.player,
 			`Stopping playback for ${this.state.id}`
 		);
+		this.player.stop();
 	};
 
 	getCurrentSurah = () => {

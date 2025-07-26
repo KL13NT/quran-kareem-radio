@@ -1,4 +1,9 @@
-import { type CommandInteraction, type Interaction } from "discord.js";
+import {
+	type AutocompleteInteraction,
+	type ChatInputCommandInteraction,
+	type CommandInteraction,
+	type Interaction,
+} from "discord.js";
 import connect from "~/commands/connect";
 import help from "~/commands/help";
 import leave from "~/commands/leave";
@@ -21,10 +26,20 @@ const isAutocompleteOption = (
 	option: CommandOption
 ): option is AutocompleteCommandOption => option.autocomplete;
 
+type InteractionCommandType =
+	| ChatInputCommandInteraction
+	| AutocompleteInteraction;
+
+const isInteractionCommand = (
+	interaction: Interaction
+): interaction is InteractionCommandType => {
+	return interaction.isCommand() || interaction.isAutocomplete();
+};
+
 const onInteractionCreate: ListenerType<"interactionCreate">["execute"] =
 	(deps) => async (interaction: Interaction) => {
 		if (
-			(!interaction.isAutocomplete() && !interaction.isCommand()) ||
+			!isInteractionCommand(interaction) ||
 			!interaction.member ||
 			!interaction.guild
 		) {

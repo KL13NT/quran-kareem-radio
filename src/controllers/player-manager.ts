@@ -240,29 +240,31 @@ export class PlayerManager extends EventEmitter {
 
 			if (!playbacks) return;
 
-			playbacks.forEach(async ({ surah }, index) => {
-				const expectedRecitation = expectedRecitations[index];
+			await Promise.allSettled(
+				playbacks.map(async ({ surah }, index) => {
+					const expectedRecitation = expectedRecitations[index];
 
-				console.log(
-					`Found expected recitation ${expectedRecitation} at surah ${surah}`
-				);
-
-				const expectedRecitationObject = recitations.find(
-					(recitation) => recitation.id === expectedRecitation
-				)!;
-
-				try {
-					await this.retrieveOrCreatePlayer({
-						...expectedRecitationObject,
-						surah: surah ?? 1,
-					});
-				} catch (error) {
 					console.log(
-						`[PLAYER-MANAGER] FATAL on reconnect ${surah}`,
-						(error as Error).message
+						`Found expected recitation ${expectedRecitation} at surah ${surah}`
 					);
-				}
-			});
+
+					const expectedRecitationObject = recitations.find(
+						(recitation) => recitation.id === expectedRecitation
+					)!;
+
+					try {
+						await this.retrieveOrCreatePlayer({
+							...expectedRecitationObject,
+							surah: surah ?? 1,
+						});
+					} catch (error) {
+						console.log(
+							`[PLAYER-MANAGER] FATAL on reconnect ${surah}`,
+							(error as Error).message
+						);
+					}
+				})
+			);
 
 			for (const { channelId, guildId, id } of requests) {
 				try {
@@ -317,11 +319,15 @@ export class PlayerManager extends EventEmitter {
 						await entersState(connection, VoiceConnectionStatus.Ready, 5_000);
 					}
 
-					if (channel.members.size === 0) {
+					const targetChannelHasBotOnly =
+						channel.members.size === 1 &&
+						channel.members.has(process.env.CLIENT_ID);
+
+					if (channel.members.size === 0 || targetChannelHasBotOnly) {
 						console.log(
 							`[PLAYER-MANAGER] Guild ${guild.name} ${guild.id} has no members. Ignoring reconnect until someone joins.`
 						);
-						return;
+						continue;
 					}
 
 					const targetRecitation = recitations.find(
@@ -345,6 +351,16 @@ export class PlayerManager extends EventEmitter {
 					);
 				}
 			}
+
+			Array.from(this.players.entries()).forEach(([recitationId, player]) => {
+				if (player.subscriptions.size === 0) {
+					console.log(
+						`[PLAYER-MANAGER] Player ${recitationId} has no listeners. Terminating...`
+					);
+					player.stop();
+					this.players.delete(recitationId);
+				}
+			});
 		} catch (error) {
 			log("Couldn't reconnect", error);
 		}
