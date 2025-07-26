@@ -120,9 +120,9 @@ export class PlayerManager extends EventEmitter {
 			...request,
 			surah: request.surah || 1,
 		});
+		this.players.set(request.id, player);
 
 		await player.init();
-		this.players.set(request.id, player);
 		return player;
 	};
 

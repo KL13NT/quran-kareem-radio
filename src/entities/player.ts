@@ -140,7 +140,6 @@ export class Player extends EventEmitter {
 		this.resource.playStream.on("close", refreshOnStreamConditions);
 		this.resource.playStream.on("end", refreshOnStreamConditions);
 		this.resource.playStream.on("error", refreshOnStreamConditions);
-		this.resource.playStream.on("pause", refreshOnStreamConditions);
 	};
 
 	changeSurah = async () => {

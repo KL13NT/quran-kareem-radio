@@ -126,10 +126,11 @@ export type MappedRecitationEdition =
 			id: Extract<RecitationIdentifier, "default">;
 			name: string;
 			server: string;
+			fallbackServer: string;
 	  }
 	// eslint-disable-next-line @typescript-eslint/ban-types
 	| {
-			id: RecitationIdentifier;
+			id: Exclude<RecitationIdentifier, "default">;
 			name: string;
 			surahs: number[];
 			server: string;

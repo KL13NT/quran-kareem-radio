@@ -10,6 +10,7 @@ declare global {
 			CLIENT_ID: string;
 			CLIENT_SECRET: string;
 			STREAM: string;
+			STREAM_FALLBACK: string;
 			MODE: "DEVELOPMENT" | "PRODUCTION";
 			PERMISSIONS: string;
 			PUBLIC_KEY: string;

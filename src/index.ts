@@ -33,6 +33,7 @@ const environment = new Environment({
 		values: ["DEVELOPMENT", "PRODUCTION"],
 	},
 	STREAM: { type: "string" },
+	STREAM_FALLBACK: { type: "string" },
 });
 
 globalThis["env"] = environment;

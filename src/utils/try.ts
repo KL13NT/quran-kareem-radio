@@ -1,10 +1,10 @@
-type Result<T> = { data: T | null; error: Error | null };
-
-export function tryCall<T>(callback: () => T): Result<T> {
+export async function tryWithFallback<T>(
+	callback: () => T | Promise<T>,
+	fallback: () => T | Promise<T>
+): Promise<T> {
 	try {
-		const data = callback();
-		return { data, error: null };
-	} catch (error) {
-		return { data: null, error: error as Error };
+		return await callback();
+	} catch {
+		return await fallback();
 	}
 }

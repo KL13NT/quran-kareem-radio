@@ -5,10 +5,11 @@ import type { PlaybackRequest } from "~/types";
 import { Throttle } from "stream-throttle";
 import https from "https";
 import http from "http";
+import { tryWithFallback } from "./try";
 
-export const createResourceURL = (data: PlaybackRequest) => {
+export const createResourceURL = (data: PlaybackRequest, fallback = false) => {
 	if (data.id === "default") {
-		return `${data.server}?${Date.now()}`;
+		return `${fallback ? data.fallbackServer : data.server}?${Date.now()}`;
 	}
 
 	const { surah, server } = data;
@@ -24,21 +25,47 @@ interface ThrottleOptions {
 // Simple HTTP stream creation
 async function createHttpStream(url: string): Promise<Readable> {
 	return new Promise<Readable>((resolve, reject) => {
+		let redirectCount = 0;
+
+		const followRedirect = (response: http.IncomingMessage) => {
+			if (response.statusCode === 302) {
+				redirectCount++;
+
+				if (redirectCount >= 5) {
+					reject(new Error("Too many redirects"));
+					return;
+				}
+
+				const location = response.headers.location;
+
+				if (!location) {
+					return reject(new Error("Redirect location not found"));
+				}
+
+				const parsedUrl = new URL(location);
+
+				const client = parsedUrl.protocol === "https:" ? https : http;
+				const request = client.get(parsedUrl, (res) => {
+					followRedirect(res);
+				});
+
+				request.on("error", reject);
+				request.setTimeout(30000, () => {
+					request.destroy();
+					reject(new Error("Request timeout"));
+				});
+			} else {
+				resolve(response);
+			}
+		};
+
 		const parsedUrl = new URL(url);
 		const client = parsedUrl.protocol === "https:" ? https : http;
 
-		const request = client.get(url, (response) => {
-			if (response.statusCode !== 200) {
-				reject(new Error(`HTTP error! status: ${response.statusCode}`));
-				return;
-			}
-
-			// Response is already a readable stream
-			resolve(response);
-		});
+		const request = client.get(url, followRedirect);
 
 		request.on("error", reject);
-		request.setTimeout(30000, () => {
+		request.setTimeout(10_000, () => {
 			request.destroy();
 			reject(new Error("Request timeout"));
 		});
@@ -51,7 +78,7 @@ async function createThrottledHttpStream(
 	options: ThrottleOptions = {}
 ): Promise<Readable> {
 	const {
-		rate = 512 * 1024, // Default 512 KB/s
+		rate = 16 * 1024, // Default 64kbps
 		chunkSize = 1024, // Default 1KB chunks
 	} = options;
 
@@ -96,7 +123,10 @@ const createFFmpegStream = async (url: string, seek = 0) => {
 };
 
 export const createAudioPlayerResource = async (data: PlaybackRequest) => {
-	const url = createResourceURL(data);
-	const stream = await createFFmpegStream(url);
+	const stream = await tryWithFallback(
+		() => createFFmpegStream(createResourceURL(data, false)),
+		() => createFFmpegStream(createResourceURL(data, true))
+	);
+
 	return createAudioResource(stream);
 };
