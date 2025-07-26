@@ -86,9 +86,7 @@ export class PlayerManager extends EventEmitter {
 		await player.subscribe(connection, guild);
 
 		if (!sameRecitation) {
-			console.log(
-				`[PLAYER-MANAGER] Switching ${guild.name} to ${request.name}`
-			);
+			console.log(`[PLAYER-MANAGER] Switched ${guild.name} to ${request.name}`);
 			await this.subscriptionService.subscribeGuild(
 				guild.id,
 				channelId,
@@ -113,9 +111,11 @@ export class PlayerManager extends EventEmitter {
 		const existingPlayer = this.players.get(request.id);
 
 		if (existingPlayer) {
+			console.log(`[PLAYER-MANAGER] Found existing player for ${request.name}`);
 			return existingPlayer;
 		}
 
+		console.log(`[PLAYER-MANAGER] Creating player for ${request.name}`);
 		const player = new Player(this.playbackService, {
 			...request,
 			surah: request.surah || 1,
@@ -126,29 +126,13 @@ export class PlayerManager extends EventEmitter {
 		return player;
 	};
 
-	async isGuildSubscribed(guildId: DiscordIdentifier) {
-		const recitation = await this.subscriptionService.getGuildSubscription(
-			guildId
-		);
-
-		if (!recitation) {
-			return false;
-		}
-
-		const player = this.players.get(recitation.recitation_id);
-
-		if (!player) {
-			return false;
-		}
-
-		return player.isGuildSubscribed(guildId);
-	}
-
 	async refresh(guild: Guild, connection: VoiceConnection) {
 		const recitations = await loadRecitations();
 		const subscription = await this.subscriptionService.getGuildSubscription(
 			guild.id
 		);
+
+		console.log(`[PLAYER-MANAGER] Attempting to refresh ${guild.name}`);
 
 		if (!subscription) {
 			throw new Error(`Subscription not found for guild ${guild.id}`);

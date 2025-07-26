@@ -5,7 +5,7 @@ import type { ListenerType } from "~/types";
 const { CLIENT_ID } = process.env;
 
 const onVoiceStateUpdate: ListenerType<"voiceStateUpdate">["execute"] =
-	({ playerManager }) =>
+	({ playerManager, subscriptionService }) =>
 	async (oldState: VoiceState, newState: VoiceState) => {
 		try {
 			const guild = newState.guild ?? oldState.guild;
@@ -59,7 +59,15 @@ const onVoiceStateUpdate: ListenerType<"voiceStateUpdate">["execute"] =
 			/**
 			 * If bot is not affected by channel change, there's nothing to do
 			 */
-			if (!botChannelAffected) return;
+			if (!botChannelAffected) {
+				return;
+			}
+
+			if (isBot && moved) {
+				await subscriptionService.updateGuildSubscription(guild.id, {
+					channel_id: newChannel.id,
+				});
+			}
 
 			if (botJoinedChannel) {
 				return;
@@ -73,6 +81,7 @@ const onVoiceStateUpdate: ListenerType<"voiceStateUpdate">["execute"] =
 				console.log(
 					`Bot has been moved from ${oldState.guild.name} ${oldChannel.name} to ${newChannel.name}`
 				);
+				await playerManager.refresh(guild, getVoiceConnection(guild.id)!);
 				return;
 			} else if (botLeftChannel) {
 				console.log(

@@ -9,32 +9,9 @@ import { client } from "./controllers/client";
 import { PlayerManager } from "./controllers/player-manager";
 import { loadRecitations } from "./utils/loadRecitations";
 import { createClient } from "@supabase/supabase-js";
-import { Environment } from "./controllers/environment";
+import { environment } from "./controllers/environment";
 import { PlaybackService } from "./services/PlaybackService";
 import { SubscriptionService } from "./services/SubscriptionService";
-
-const environment = new Environment({
-	TOKEN: { type: "string" },
-	DEBUG: {
-		type: "string",
-		values: ["true", "false"],
-		optional: true,
-	},
-	SUPABASE_URL: { type: "string" },
-	SUPABASE_KEY: { type: "string" },
-	ANALYTICS_CHANNEL_ID: { type: "string" },
-	CLIENT_ID: { type: "string" },
-	CLIENT_SECRET: { type: "string" },
-	DEV_SERVER_ID: { type: "string" },
-	PERMISSIONS: { type: "string" },
-	PUBLIC_KEY: { type: "string" },
-	MODE: {
-		type: "string",
-		values: ["DEVELOPMENT", "PRODUCTION"],
-	},
-	STREAM: { type: "string" },
-	STREAM_FALLBACK: { type: "string" },
-});
 
 globalThis["env"] = environment;
 

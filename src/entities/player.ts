@@ -11,7 +11,7 @@ import {
 	type PlayerSubscription,
 } from "@discordjs/voice";
 import { createAudioPlayerResource } from "~/utils/createAudioPlayerResource";
-import type { DiscordIdentifier, PlaybackRequest } from "~/types";
+import type { PlaybackRequest } from "~/types";
 import console from "console";
 import type { PlaybackService } from "~/services/PlaybackService";
 
@@ -49,6 +49,7 @@ export class Player extends EventEmitter {
 	state!: PlaybackRequest;
 	resource!: AudioResource;
 	bufferingTimeout!: NodeJS.Timeout;
+	fallback = false;
 
 	constructor(
 		private readonly playbackService: PlaybackService,
@@ -71,19 +72,19 @@ export class Player extends EventEmitter {
 	}
 
 	init = async () => {
-		this.resource = await createAudioPlayerResource(this.state);
+		const resource = createAudioPlayerResource(this.state, this.fallback);
 
-		this.player.play(this.resource);
+		this.player.play(resource);
 		await entersState(this.player, AudioPlayerStatus.Playing, 10000);
 		console.log("[PLAYER]", `Player for ${this.state.id} started playing`);
 		this.attachPlayerListeners(this.player);
 
 		if (this.state.id !== "default") {
-			this.resource?.playStream.on("error", (error) => {
-				console.log("[PLAYER]", "Stream errored", error);
-				removePlayerListeners(this.player, "playStream has errored");
-				this.changeSurah();
-			});
+			// resource?.playStream.on("error", (error) => {
+			// 	console.log("[PLAYER]", "Stream errored", error);
+			// 	removePlayerListeners(this.player, "playStream has errored");
+			// 	this.refresh();
+			// });
 
 			await this.playbackService.setPlaybackProgress(
 				this.state.id,
@@ -93,12 +94,14 @@ export class Player extends EventEmitter {
 	};
 
 	refresh = async (reason?: string) => {
+		this.fallback = !this.fallback;
+
 		removePlayerListeners(
 			this.player,
 			`Refreshing playback for ${this.state.id}. Reason: ${reason}`
 		);
 		this.player.stop();
-		this.resource = await createAudioPlayerResource(this.state);
+		this.resource = createAudioPlayerResource(this.state, this.fallback);
 		this.attachPlayerListeners(this.player);
 		this.player.play(this.resource);
 		clearTimeout(this.bufferingTimeout);
@@ -112,34 +115,16 @@ export class Player extends EventEmitter {
 
 		console.log("[PLAYER]", "Attaching player listeners");
 
+		player.on(AudioPlayerStatus.Idle, () => {
+			if (this.state.id === "default") this.refresh("Player became idle");
+			else this.changeSurah();
+		});
+
 		player.on("error", (error) => {
-			console.log("[PLAYER]", `Player error`, error);
-			removePlayerListeners(player, "Player has errored");
-			this.changeSurah();
+			console.log("[PLAYER]", `Player error`, error.message);
+			if (this.state.id === "default") this.refresh("Player became idle");
+			else this.changeSurah();
 		});
-
-		player.on("stateChange", async (stateChange) => {
-			console.log(
-				`[PLAYER] Player state change for ${this.state.id}`,
-				stateChange.status
-			);
-		});
-
-		const refreshOnStreamConditions = () => {
-			console.log(
-				`[PLAYER] Stream ended, closed, paused, or errored for ${this.state.id}`
-			);
-
-			if (this.state.id === "default") {
-				this.refresh("Radio play stream ended");
-			} else {
-				this.changeSurah();
-			}
-		};
-
-		this.resource.playStream.on("close", refreshOnStreamConditions);
-		this.resource.playStream.on("end", refreshOnStreamConditions);
-		this.resource.playStream.on("error", refreshOnStreamConditions);
 	};
 
 	changeSurah = async () => {
@@ -159,7 +144,7 @@ export class Player extends EventEmitter {
 			};
 
 			await this.playbackService.setPlaybackProgress(this.state.id, nextSurah);
-			const resource = await createAudioPlayerResource(updatedState);
+			const resource = createAudioPlayerResource(updatedState, this.fallback);
 			this.state = updatedState;
 			this.resource = resource;
 			this.player.play(resource);
@@ -204,9 +189,5 @@ export class Player extends EventEmitter {
 
 	getCurrentSurah = () => {
 		return this.state.surah;
-	};
-
-	isGuildSubscribed = (guildId: DiscordIdentifier) => {
-		return this.subscriptions.has(guildId);
 	};
 }

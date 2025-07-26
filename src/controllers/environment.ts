@@ -19,6 +19,8 @@ export class Environment {
 			const configItem = this.config[key];
 			const value = process.env[key];
 
+			console.log(`[ENV] ${key}: ${value}`);
+
 			if (value === undefined && !configItem.optional) {
 				throw new Error(`Environment variable ${key} is required`);
 			} else if (value === undefined && configItem.optional) {
@@ -68,4 +70,5 @@ export const environment = new Environment({
 		values: ["DEVELOPMENT", "PRODUCTION"],
 	},
 	STREAM: { type: "string" },
+	STREAM_FALLBACK: { type: "string" },
 });
