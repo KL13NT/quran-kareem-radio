@@ -38,7 +38,7 @@ const onInteractionCreate: ListenerType<"interactionCreate">["execute"] =
 			const { commandName } = interaction;
 			const command = commands[commandName as CommandKey];
 			const subcommandName =
-				"getSubcommand" in interaction.options
+				"getSubcommand" in interaction.options && command.subcommands?.length
 					? interaction.options.getSubcommand()
 					: null;
 
@@ -59,13 +59,13 @@ const onInteractionCreate: ListenerType<"interactionCreate">["execute"] =
 				);
 
 				if (matchedOption && isAutocompleteOption(matchedOption)) {
-					matchedOption.method(interaction);
+					await matchedOption.method(interaction);
 				}
 			} else {
 				await command.run(deps)(interaction);
 			}
 		} catch (error) {
-			console.error((error as Error).message);
+			console.error(`[INTERACTION-CREATE] FATAL`, (error as Error).message);
 		}
 	};
 
