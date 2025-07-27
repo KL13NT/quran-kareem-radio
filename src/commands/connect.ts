@@ -29,7 +29,7 @@ const createVoiceConnection = async (
 		existingConnection.state.status === VoiceConnectionStatus.Ready
 	) {
 		console.log(
-			`[VOICE] Voice connection already exists for guild ${guildId}, reusing it`
+			`[COMMAND_CONNECT] Voice connection already exists for guild ${guildId}, reusing it`
 		);
 		return existingConnection;
 	}

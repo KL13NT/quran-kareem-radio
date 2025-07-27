@@ -80,7 +80,12 @@ const onInteractionCreate: ListenerType<"interactionCreate">["execute"] =
 				await command.run(deps)(interaction);
 			}
 		} catch (error) {
-			console.error(`[INTERACTION-CREATE] FATAL`, (error as Error).message);
+			console.error(`[INTERACTION-CREATE] FATAL`, error);
+			if (interaction.isChatInputCommand()) {
+				await interaction.editReply(
+					`Something went wrong. Please try again later.`
+				);
+			}
 		}
 	};
 

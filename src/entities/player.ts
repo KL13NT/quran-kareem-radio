@@ -49,7 +49,6 @@ export class Player extends EventEmitter {
 	state!: PlaybackRequest;
 	resource!: AudioResource;
 	bufferingTimeout!: NodeJS.Timeout;
-	fallback = false;
 
 	constructor(
 		private readonly playbackService: PlaybackService,
@@ -72,20 +71,14 @@ export class Player extends EventEmitter {
 	}
 
 	init = async () => {
-		const resource = createAudioPlayerResource(this.state, this.fallback);
+		this.resource = await createAudioPlayerResource(this.state);
 
-		this.player.play(resource);
+		this.player.play(this.resource);
 		await entersState(this.player, AudioPlayerStatus.Playing, 10000);
 		console.log("[PLAYER]", `Player for ${this.state.id} started playing`);
 		this.attachPlayerListeners(this.player);
 
 		if (this.state.id !== "default") {
-			// resource?.playStream.on("error", (error) => {
-			// 	console.log("[PLAYER]", "Stream errored", error);
-			// 	removePlayerListeners(this.player, "playStream has errored");
-			// 	this.refresh();
-			// });
-
 			await this.playbackService.setPlaybackProgress(
 				this.state.id,
 				this.state.surah
@@ -94,19 +87,18 @@ export class Player extends EventEmitter {
 	};
 
 	refresh = async (reason?: string) => {
-		this.fallback = !this.fallback;
-
 		removePlayerListeners(
 			this.player,
 			`Refreshing playback for ${this.state.id}. Reason: ${reason}`
 		);
 		this.player.stop();
-		this.resource = createAudioPlayerResource(this.state, this.fallback);
+		this.resource = await createAudioPlayerResource(this.state);
 		this.attachPlayerListeners(this.player);
 		this.player.play(this.resource);
 		clearTimeout(this.bufferingTimeout);
 	};
 
+	// TODO: add max retries
 	attachPlayerListeners = (player: AudioPlayer) => {
 		if (player.listeners("error").length > 0) {
 			console.log("[PLAYER]", "Listeners already attached", console.trace());
@@ -116,13 +108,14 @@ export class Player extends EventEmitter {
 		console.log("[PLAYER]", "Attaching player listeners");
 
 		player.on(AudioPlayerStatus.Idle, () => {
+			console.log(`[PLAYER] Player for ${this.state.id} became idle`);
 			if (this.state.id === "default") this.refresh("Player became idle");
 			else this.changeSurah();
 		});
 
 		player.on("error", (error) => {
 			console.log("[PLAYER]", `Player error`, error.message);
-			if (this.state.id === "default") this.refresh("Player became idle");
+			if (this.state.id === "default") this.refresh("Player error");
 			else this.changeSurah();
 		});
 	};
@@ -144,7 +137,7 @@ export class Player extends EventEmitter {
 			};
 
 			await this.playbackService.setPlaybackProgress(this.state.id, nextSurah);
-			const resource = createAudioPlayerResource(updatedState, this.fallback);
+			const resource = await createAudioPlayerResource(updatedState);
 			this.state = updatedState;
 			this.resource = resource;
 			this.player.play(resource);

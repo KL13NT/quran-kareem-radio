@@ -127,49 +127,53 @@ export const translateSurahNumber = (surah: number) => surahs[surah - 1];
 export const transformSurahList = (surahList: number[]) =>
 	surahList.map(translateSurahNumber);
 
+const defaultRecitation = {
+	id: "default",
+	name: "إذاعة القرآن الكريم من القاهرة - Cairo's Quran Kareem Radio",
+	server: process.env.STREAM,
+	fallbackServer: process.env.STREAM_FALLBACK,
+} as Extract<MappedRecitationEdition, "default">;
+
 /**
  * Memoizes the loading of recitations. Cleared every 24 hours.
  */
 export const loadRecitations = memoize(async () => {
-	console.log("Loading recitations");
-	const editions: RecitationEdition[] = await fetch(
-		"https://www.mp3quran.net/api/v3/reciters?language=ar"
-	)
-		.then((res) => res.json())
-		.then((data) => (data as Response).reciters);
+	try {
+		console.log("Loading recitations");
+		const editions: RecitationEdition[] = await fetch(
+			"https://www.mp3quran.net/api/v3/reciters?language=ar"
+		)
+			.then((res) => res.json())
+			.then((data) => (data as Response).reciters);
 
-	const mappedEditions = editions
-		.map((edition) => {
-			const filteredMoshafs = edition.moshaf.filter(
-				(moshaf) =>
-					!moshaf.name.includes("معلم") && !moshaf.name.includes("مجود")
-			);
+		const mappedEditions = editions
+			.map((edition) => {
+				const filteredMoshafs = edition.moshaf.filter(
+					(moshaf) =>
+						!moshaf.name.includes("معلم") && !moshaf.name.includes("مجود")
+				);
 
-			if (filteredMoshafs.length === 0) {
-				return null;
-			}
+				if (filteredMoshafs.length === 0) {
+					return null;
+				}
 
-			return filteredMoshafs.map((moshaf) => {
-				return {
-					id: `${edition.id}-${moshaf.id}`,
-					name: `${edition.name} ${moshaf.name}`,
-					surahs: JSON.parse(`[${moshaf.surah_list}]`) as number[],
-					server: moshaf.server,
-				};
-			});
-		})
-		.filter(Boolean)
-		.flat();
+				return filteredMoshafs.map((moshaf) => {
+					return {
+						id: `${edition.id}-${moshaf.id}`,
+						name: `${edition.name} ${moshaf.name}`,
+						surahs: JSON.parse(`[${moshaf.surah_list}]`) as number[],
+						server: moshaf.server,
+					};
+				});
+			})
+			.filter(Boolean)
+			.flat();
 
-	return [
-		{
-			id: "default",
-			name: "إذاعة القرآن الكريم من القاهرة - Cairo's Quran Karim Radio",
-			server: process.env.STREAM,
-			fallbackServer: process.env.STREAM_FALLBACK,
-		},
-		...mappedEditions,
-	] as MappedRecitationEdition[];
+		return [defaultRecitation, ...mappedEditions] as MappedRecitationEdition[];
+	} catch (error) {
+		loadRecitations.cache.clear?.();
+		return [defaultRecitation];
+	}
 });
 
 setInterval(() => {

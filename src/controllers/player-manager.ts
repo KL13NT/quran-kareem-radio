@@ -122,6 +122,7 @@ export class PlayerManager extends EventEmitter {
 		});
 		this.players.set(request.id, player);
 
+		console.log(`[PLAYER-MANAGER] Initialising player for ${request.name}`);
 		await player.init();
 		return player;
 	};
