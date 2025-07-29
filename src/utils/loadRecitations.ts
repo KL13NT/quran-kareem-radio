@@ -171,6 +171,7 @@ export const loadRecitations = memoize(async () => {
 
 		return [defaultRecitation, ...mappedEditions] as MappedRecitationEdition[];
 	} catch (error) {
+		console.log(`[LOAD_RECITATIONS] FATAL`, error)
 		loadRecitations.cache.clear?.();
 		return [defaultRecitation];
 	}

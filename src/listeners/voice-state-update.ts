@@ -55,7 +55,7 @@ const onVoiceStateUpdate: ListenerType<"voiceStateUpdate">["execute"] =
 			const channelEmptyAfterUserMovement =
 				!isBot && movedOrLeft && botChannel.members.size === 1;
 			const channelOccupiedAfterUserMovement =
-				!isBot && movedOrJoined && botChannel.members.size >= 2;
+				!isBot && movedOrJoined && botChannel.members.size === 2;
 
 			/**
 			 * If bot is not affected by channel change, there's nothing to do

@@ -196,7 +196,9 @@ export class PlayerManager extends EventEmitter {
 			console.log("Reconnecting players to guilds");
 
 			const subscriptions = await this.subscriptionService.getAllRecitations();
+			console.log(`found ${subscriptions.length} subscriptions`);
 			const recitations = await loadRecitations();
+			console.log(`found ${recitations.length} recitations`);
 			const requests = subscriptions
 				.map((subscription) => {
 					const foundRecitation = recitations.find(
@@ -223,7 +225,10 @@ export class PlayerManager extends EventEmitter {
 				expectedRecitations
 			);
 
-			if (!playbacks) return;
+			if (!playbacks) {
+				console.log(`Found no playbacks for ${expectedRecitations.join(', ')}`)
+				return;
+			}
 
 			await Promise.allSettled(
 				playbacks.map(async ({ surah }, index) => {
