@@ -40,6 +40,7 @@ const onVoiceStateUpdate: ListenerType<"voiceStateUpdate">["execute"] =
 			const joined = !oldChannel && newChannel;
 			const moved = oldChannel && newChannel && newChannel.id !== oldChannel.id;
 			const movedOrLeft = moved || left;
+			const movedOrJoined = moved || joined;
 
 			const sameUserBotOldChannel = connectedChannelId === oldChannel?.id;
 			const sameUserBotNewChannel = connectedChannelId === newChannel?.id;
@@ -54,7 +55,7 @@ const onVoiceStateUpdate: ListenerType<"voiceStateUpdate">["execute"] =
 			const channelEmptyAfterUserMovement =
 				!isBot && movedOrLeft && botChannel.members.size === 1;
 			const channelOccupiedAfterUserMovement =
-				!isBot && joined && botChannel.members.size === 2;
+				!isBot && movedOrJoined && botChannel.members.size >= 2;
 
 			/**
 			 * If bot is not affected by channel change, there's nothing to do
