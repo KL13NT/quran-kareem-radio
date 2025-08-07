@@ -47,7 +47,7 @@ export class PlaybackService {
 	async bulkGetPlaybackProgress(recitationIds: Identifier[]) {
 		const { data, error } = await this.supabase
 			.from("recitation progress")
-			.select("surah")
+			.select("*")
 			.in("recitation_id", recitationIds);
 
 		if (error) {

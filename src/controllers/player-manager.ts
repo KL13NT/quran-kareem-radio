@@ -195,10 +195,18 @@ export class PlayerManager extends EventEmitter {
 		try {
 			console.log("Reconnecting players to guilds");
 
-			const subscriptions = await this.subscriptionService.getAllRecitations();
-			console.log(`found ${subscriptions.length} subscriptions`);
+			const rawSubscriptions =
+				await this.subscriptionService.getAllRecitations();
+
+			console.log(`Found ${rawSubscriptions.length} subscriptions`);
+
+			const subscriptions = process.env.MODE === 'DEVELOPMENT'? rawSubscriptions.filter(
+				(sub) => sub.guild_id === process.env.DEV_SERVER_ID
+			): rawSubscriptions;
+
 			const recitations = await loadRecitations();
-			console.log(`found ${recitations.length} recitations`);
+			console.log(`Found ${recitations.length} recitations`);
+
 			const requests = subscriptions
 				.map((subscription) => {
 					const foundRecitation = recitations.find(
@@ -221,17 +229,27 @@ export class PlayerManager extends EventEmitter {
 				new Set(subscriptions.map((subscription) => subscription.recitation_id))
 			);
 
-			const playbacks = await this.playbackService.bulkGetPlaybackProgress(
-				expectedRecitations
-			);
+			const playbacks =
+				(await this.playbackService.bulkGetPlaybackProgress(
+					expectedRecitations
+				)) ?? [];
 
-			if (!playbacks) {
-				console.log(`Found no playbacks for ${expectedRecitations.join(', ')}`)
-				return;
-			}
+			const finalPlaybacks =
+				playbacks.length !== expectedRecitations.length
+					? expectedRecitations.map((expectedRecitation) => {
+							const playback = playbacks.find(
+								(playback) => playback.recitation_id === expectedRecitation
+							);
+
+							return {
+								recitationId: expectedRecitation,
+								surah: playback?.surah ?? 1,
+							};
+					  })
+					: playbacks;
 
 			await Promise.allSettled(
-				playbacks.map(async ({ surah }, index) => {
+				finalPlaybacks.map(async ({ surah }, index) => {
 					const expectedRecitation = expectedRecitations[index];
 
 					console.log(

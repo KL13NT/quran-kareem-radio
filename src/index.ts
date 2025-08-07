@@ -56,9 +56,7 @@ client.once("ready", async () => {
 
 	initAnalytics(client);
 
-	if (environment.get("MODE") === "PRODUCTION") {
-		await playerManager.reconnect();
-	}
+	await playerManager.reconnect();
 
 	const listenerDeps = {
 		playbackService,
