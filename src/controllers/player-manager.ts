@@ -200,9 +200,12 @@ export class PlayerManager extends EventEmitter {
 
 			console.log(`Found ${rawSubscriptions.length} subscriptions`);
 
-			const subscriptions = process.env.MODE === 'DEVELOPMENT'? rawSubscriptions.filter(
-				(sub) => sub.guild_id === process.env.DEV_SERVER_ID
-			): rawSubscriptions;
+			const subscriptions =
+				process.env.MODE === "DEVELOPMENT"
+					? rawSubscriptions.filter(
+							(sub) => sub.guild_id === process.env.DEV_SERVER_ID
+					  )
+					: rawSubscriptions;
 
 			const recitations = await loadRecitations();
 			console.log(`Found ${recitations.length} recitations`);
@@ -283,7 +286,7 @@ export class PlayerManager extends EventEmitter {
 						console.log(
 							`[PLAYER-MANAGER] Can't connect to guild ${guild.name} ${guild.id} due to missing permissions`
 						);
-						return;
+						continue;
 					}
 
 					const channel = (await guild.channels.fetch(

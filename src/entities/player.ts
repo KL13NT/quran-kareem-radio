@@ -168,11 +168,7 @@ export class Player extends EventEmitter {
 		this.subscriptions.delete(guild.id);
 	};
 
-	stop = async (keepProgress = false) => {
-		if (!keepProgress) {
-			await this.playbackService.deletePlaybackProgress(this.state.id);
-		}
-
+	stop = async () => {
 		removePlayerListeners(
 			this.player,
 			`Stopping playback for ${this.state.id}`
