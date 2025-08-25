@@ -33,6 +33,8 @@ export const initAnalytics = (client: Client) => {
 					connection.joinConfig.channelId!
 				) as VoiceChannel;
 
+				if(channel.members.size === 0) return members;
+
 				return channel.members.size - 1 + members;
 			}, 0);
 
@@ -41,7 +43,7 @@ export const initAnalytics = (client: Client) => {
 			const channel = await client.channels.fetch(ANALYTICS_CHANNEL_ID);
 			if (!channel) return;
 
-			(channel as TextChannel).send(message);
+			await (channel as TextChannel).send(message);
 		} catch (error) {
 			console.error(error);
 		}
