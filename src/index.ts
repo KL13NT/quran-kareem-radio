@@ -2,7 +2,6 @@ import dns from "dns";
 dns.setDefaultResultOrder("ipv4first");
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
-import http from "http";
 import { ActivityType } from "discord.js";
 
 import { initAnalytics } from "~/utils/analytics";
@@ -76,11 +75,3 @@ client.once("clientReady", async () => {
 });
 
 client.login(TOKEN);
-
-http
-	.createServer(function (_, res) {
-		res.writeHead(200, { "Content-Type": "text/plain" });
-		res.write("Hello World!");
-		res.end();
-	})
-	.listen(3000);
