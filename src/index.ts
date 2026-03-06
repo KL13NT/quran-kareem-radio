@@ -30,7 +30,7 @@ if (DEBUG === "true") {
 	client.on("warn", (info) => console.log(info));
 }
 
-client.once("ready", async () => {
+client.once("clientReady", async () => {
 	console.log("Ready!");
 
 	const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
